@@ -18,20 +18,20 @@
 Night's Watch WSGI server
 """
 
-from nights_watch.business_logic import BrickBusinessLogic
+from nights_watch.business_logic import BusinessLogic
 from cgi import parse_qs
 from configparser import SafeConfigParser, NoSectionError, NoOptionError
 from functools import wraps
 import json
 import logbook
-from nights_watch.mongo_store import MongoBrickStore
+from nights_watch.mongo_store import MongoStore
 import os
 import re
 import sys
 from wsgiref.simple_server import make_server, WSGIRequestHandler
 
 config_file = 'nights-watch.ini'
-url_prefix = '/nights-watch/v1/brick/'
+url_prefix = '/nights-watch/v1/watcher/'
 
 log = logbook.Logger('nights-watch')
 business_logic = None
@@ -73,7 +73,7 @@ def main():
             sys.exit('No "{}" setting in "mongodb" section of config file'.
                      format(arg))
         kwargs.pop(arg)
-    store = MongoBrickStore(*args, **kwargs)
+    store = MongoStore(*args, **kwargs)
 
     try:
         email_sender = config.get('email', 'sender')
@@ -82,7 +82,7 @@ def main():
     except NoOptionError:
         sys.exit('No "sender" setting in "email" section of config file')
 
-    business_logic = BrickBusinessLogic(store, email_sender)
+    business_logic = BusinessLogic(store, email_sender)
 
     try:
         listen_port = int(config.get('wsgi', 'port'))
@@ -258,12 +258,12 @@ def handle_exceptions(f):
 @boolean_parameters('paused')
 @valid_parameters('name', 'periodicity', 'description', 'email', 'paused')
 def handle_create(query, start_response):
-    brick = business_logic.create(query['name'],
-                                  query['periodicity'],
-                                  query.get('description', ''),
-                                  query.get('email', []),
-                                  query.get('paused', False))
-    return ('200 OK', {'status': 'ok', 'brick': jsonify_brick(brick)})
+    watcher = business_logic.create(query['name'],
+                                    query['periodicity'],
+                                    query.get('description', ''),
+                                    query.get('email', []),
+                                    query.get('paused', False))
+    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
 
 
 @handle_exceptions
@@ -280,33 +280,33 @@ def handle_delete(query, start_response):
 @int_parameters('periodicity')
 @valid_parameters('id', 'name', 'periodicity', 'description', 'email')
 def handle_update(query, start_response):
-    brick = business_logic.update(query['id'],
-                                  query.get('name', None),
-                                  query.get('periodicity', None),
-                                  query.get('description', None),
-                                  query.get('email', None))
-    return ('200 OK', {'status': 'ok', 'brick': jsonify_brick(brick)})
+    watcher = business_logic.update(query['id'],
+                                    query.get('name', None),
+                                    query.get('periodicity', None),
+                                    query.get('description', None),
+                                    query.get('email', None))
+    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
 
 
 @handle_exceptions
 @find_identifier()
 @valid_parameters('id')
 def handle_get(query, start_response):
-    brick = business_logic.get(query['id'])
+    watcher = business_logic.get(query['id'])
 
-    return ('200 OK', {'status': 'ok', 'brick': jsonify_brick(brick)})
+    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
 
 
 @handle_exceptions
 @boolean_parameters('verbose', 'paused', 'late')
 @valid_parameters('verbose', 'paused', 'late')
 def handle_list(query, start_response):
-    bricks = [jsonify_brick(brick)
-              for brick in business_logic.list(
-                  query.get('verbose', False),
-                  query.get('paused', False),
-                  query.get('late', False))]
-    return ('200 OK', {'status': 'ok', 'bricks': bricks})
+    watchers = [jsonify_watcher(watcher)
+                for watcher in business_logic.list(
+                    query.get('verbose', False),
+                    query.get('paused', False),
+                    query.get('late', False))]
+    return ('200 OK', {'status': 'ok', 'watchers': watchers})
 
 
 @handle_exceptions
@@ -325,9 +325,9 @@ def handle_trigger(query, start_response):
 @string_parameters('comment')
 @valid_parameters('id', 'comment')
 def handle_pause(query, start_response):
-    brick = business_logic.pause(query['id'],
-                                 query.get('comment', ''))
-    return ('200 OK', {'status': 'ok', 'brick': jsonify_brick(brick)})
+    watcher = business_logic.pause(query['id'],
+                                   query.get('comment', ''))
+    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
 
 
 @handle_exceptions
@@ -335,23 +335,23 @@ def handle_pause(query, start_response):
 @string_parameters('comment')
 @valid_parameters('id', 'comment')
 def handle_unpause(query, start_response):
-    brick = business_logic.unpause(query['id'],
-                                   query.get('comment', ''))
-    return ('200 OK', {'status': 'ok', 'brick': jsonify_brick(brick)})
+    watcher = business_logic.unpause(query['id'],
+                                     query.get('comment', ''))
+    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
 
 
-def jsonify_brick(brick):
-    for key, value in [(k, v) for k, v in brick.items()]:
+def jsonify_watcher(watcher):
+    for key, value in [(k, v) for k, v in watcher.items()]:
         if value is None:
-            del brick[key]
+            del watcher[key]
 
-    if 'deadline' in brick:
-        brick['deadline'] = brick['deadline'].isoformat()
+    if 'deadline' in watcher:
+        watcher['deadline'] = watcher['deadline'].isoformat()
 
-    if 'history' in brick:
-        brick['history'] = tuple((d.isoformat(), c)
-                                 for d, c in brick['history'])
-    return brick
+    if 'history' in watcher:
+        watcher['history'] = tuple((d.isoformat(), c)
+                                   for d, c in watcher['history'])
+    return watcher
 
 
 class LogbookWSGIRequestHandler(WSGIRequestHandler):

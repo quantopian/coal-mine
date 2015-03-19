@@ -1,16 +1,17 @@
 Night's Watch - Periodic task execution monitor
 ===============================================
 
-Track tasks (called, here, "bricks") that are supposed to execute
-periodically. Alert by email when a brick is late. Alert again when a
-late brick resumes. Keep a partial history of brick trigger times.
+Track tasks that are supposed to execute periodically using "watchers"
+that the tasks trigger when they execute. Alert by email when a
+watcher is late. Alert again when a late watcher resumes. Keep a
+partial history of watcher trigger times.
 
 Uses MongoDB for storage. Pull requests to add additional storage
 engines are welcome.
 
 The server notifies immediately when the deadline for an unpaused
-brick passes. Similarly, the server notifies immediately when a
-previously late brick is triggered.
+watcher passes. Similarly, the server notifies immediately when a
+previously late watcher is triggered.
 
 All timestamps are stored and displayed in UTC.
 
@@ -28,17 +29,17 @@ Usage examples
 
     $ nights-watch &
     [1] 7564
-    $ curl 'http://localhost:8080/nights-watch/v1/brick/create?name=My+First+Brick&periodicity=3600'
+    $ curl 'http://localhost:8080/nights-watch/v1/watcher/create?name=My+First+Watcher&periodicity=3600'
     {
         "status": "ok",
-        "brick": {
+        "watcher": {
             "deadline": "2015-03-19T02:08:44.885182",
             "id": "fbkvlsby",
             "paused": false,
             "description": "",
             "periodicity": 3600,
-            "name": "My First Brick",
-            "slug": "my-first-brick",
+            "name": "My First Watcher",
+            "slug": "my-first-watcher",
             "emails": [],
             "history": [
                 [
@@ -55,17 +56,17 @@ Usage examples
         "unpaused": false,
         "status": "ok"
     }
-    $ curl 'http://localhost:8080/nights-watch/v1/brick/trigger?slug=my-first-brick&comment=long+form+trigger+url'
+    $ curl 'http://localhost:8080/nights-watch/v1/watcher/trigger?slug=my-first-watcher&comment=long+form+trigger+url'
     {
         "recovered": false,
         "unpaused": false,
         "status": "ok"
     }
-    $ curl 'http://localhost:8080/nights-watch/v1/brick/get?name=My+First+Brick'
+    $ curl 'http://localhost:8080/nights-watch/v1/watcher/get?name=My+First+Watcher'
     {
-        "brick": {
+        "watcher": {
             "paused": false,
-            "name": "My First Brick",
+            "name": "My First Watcher",
             "history": [
                 [
                     "2015-03-19T01:11:56.408000",
@@ -83,7 +84,7 @@ Usage examples
             "emails": [],
             "id": "fbkvlsby",
             "late": false,
-            "slug": "my-first-brick",
+            "slug": "my-first-watcher",
             "deadline": "2015-03-19T02:11:56.408000",
             "periodicity": 3600,
             "description": ""
@@ -143,14 +144,14 @@ in responses are standard JSON, i.e., "true" or "false".
 
 Timestamps returned by API are always UTC.
 
-### Create brick
+### Create watcher
 
-Endpoint: /nights-watch/v1/brick/create
+Endpoint: /nights-watch/v1/watcher/create
 
 Side effects:
 
-Adds brick to database. Creates history record at current time with
-"Brick created" as its comment. Sets deadline to current time plus
+Adds watcher to database. Creates history record at current time with
+"Watcher created" as its comment. Sets deadline to current time plus
 periodicity, unless "paused" was specified.
 
 Required parameters:
@@ -164,13 +165,13 @@ Optional parameters:
 * description - empty if unspecified
 * email - specify multiple times for multiple addresses; no
   notifications if unspecified
-* paused - allows brick to be created already in paused state
+* paused - allows watcher to be created already in paused state
 
 Response is the same as shown for get().
 
-### Delete brick
+### Delete watcher
 
-Endpoint: /nights-watch/v1/brick/delete
+Endpoint: /nights-watch/v1/watcher/delete
 
 Required parameters:
 
@@ -181,16 +182,16 @@ Response:
 
     {'status': 'ok'}
 
-### Update brick
+### Update watcher
 
-Endpoint: /nights-watch/v1/brick/update
+Endpoint: /nights-watch/v1/watcher/update
 
 Side effects:
 
-Updates the specified brick attributes. Updates deadline to latest
-history timestamp plus periodicity if periodicity is updated and brick
+Updates the specified watcher attributes. Updates deadline to latest
+history timestamp plus periodicity if periodicity is updated and watcher
 is unpaused, and sets late state if new deadline is before now. Sends
-notification if brick goes from not late to late or vice versa.
+notification if watcher goes from not late to late or vice versa.
 
 Required parameters:
 
@@ -207,9 +208,9 @@ Optional parameters:
 
 Response is the same as shown for get().
 
-### Get brick
+### Get watcher
 
-Endpoint: /nights-watch/v1/brick/get
+Endpoint: /nights-watch/v1/watcher/get
 
 Required parameters:
 
@@ -219,7 +220,7 @@ Required parameters:
 Response:
 
     {'status': 'ok',
-     'brick': {'name': name,
+     'watcher': {'name': name,
                'description': description,
                'id': identifier,
                'slug': slug,
@@ -230,9 +231,9 @@ Response:
                'deadline': 'YYYY-MM-DDTHH:MM:SSZ',
                'history': [['YYYY-MM-DDTHH:MM:SSZ', comment], ...]}}
 
-### List bricks
+### List watchers
 
-Endpoint: /nights-watch/v1/brick/list
+Endpoint: /nights-watch/v1/watcher/list
 
 Required parameters:
 
@@ -240,31 +241,31 @@ Required parameters:
 
 Optional parameters:
 
-* verbose - include all query output for each brick
-* paused - boolean, whether to list paused / unpaused bricks only
-* late - boolean, whether to list late / timely bricks only
+* verbose - include all query output for each watcher
+* paused - boolean, whether to list paused / unpaused watchers only
+* late - boolean, whether to list late / timely watchers only
 
 Response:
 
     {'status': 'ok',
-     'bricks': [{'name': name,
+     'watchers': [{'name': name,
                  'id': identifier},
                 ...]}
 
-If "verbose" is true, then the JSON for each brick includes all the
+If "verbose" is true, then the JSON for each watcher includes all the
 fields shown above, not just the name and identifier.
                 
-### Trigger brick
+### Trigger watcher
 
-Endpoint: /nights-watch/v1/brick/trigger
+Endpoint: /nights-watch/v1/watcher/trigger
 
 Also: /_identifier_, in which case the "id" parameter is implied
 
 Side effects:
 
 Sets late state to false. Sets deadline to now plus periodicity. Adds
-history record. Prunes history records. Unpauses brick. Generates
-notification email if brick was previously late.
+history record. Prunes history records. Unpauses watcher. Generates
+notification email if watcher was previously late.
 
 Required parameters:
 
@@ -279,19 +280,19 @@ Response:
 
     {'status': 'ok', 'recovered': boolean, 'unpaused': boolean}
 
-* recovered - indicates whether the brick was previously late before
+* recovered - indicates whether the watcher was previously late before
   this trigger
-* unpaused - indicates whether the brick was previously paused before
+* unpaused - indicates whether the watcher was previously paused before
   this trigger
 
-### Pause brick
+### Pause watcher
 
-Endpoint: /nights-watch/v1/brick/pause
+Endpoint: /nights-watch/v1/watcher/pause
 
 Side effects:
 
 Clears deadline. Sets late state to false if necessary. Pauses
-brick. Adds history record about pause. Prunes history records.
+watcher. Adds history record about pause. Prunes history records.
 
 Required parameters:
 
@@ -304,13 +305,13 @@ Optional parameters:
 
 Response is the same as shown for get().
 
-### Unpause brick
+### Unpause watcher
 
-Endpoint /nights-watch/v1/brick/unpause
+Endpoint /nights-watch/v1/watcher/unpause
 
 Side effects:
 
-Sets deadline to now plus periodicity. Unpauses brick. Adds history
+Sets deadline to now plus periodicity. Unpauses watcher. Adds history
 record about unpause. Prunes history records.
 
 Required parameters:
@@ -343,7 +344,7 @@ for the sake of using a third-party package.
 Data model
 ----------
 
-For each brick, we store:
+For each watcher, we store:
 
 * name
 * description
@@ -351,7 +352,7 @@ For each brick, we store:
   to hyphens and other non-alphanumeric characters removed
 * random identifier, guaranteed unique
 * periodicity - maximum number of seconds that can elapse before a
-  brick is late.
+  watcher is late.
 * notification email address(es)
 * late state (boolean)
 * paused state (boolean)
@@ -373,7 +374,7 @@ Web UI.
 
 Links to Web UI in email notifications.
 
-Repeat notifications if a brick remains late for an extended period of
+Repeat notifications if a watcher remains late for an extended period of
 time? Not even sure I want this.
 
 Release to PyPI.

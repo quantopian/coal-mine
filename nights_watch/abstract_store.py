@@ -23,13 +23,13 @@ class AlreadyExistsError(Exception):
     pass
 
 
-class AbstractBrickStore(object):
+class AbstractStore(object):
     def __init__(self, *args, **kwargs):
         """Args and behavior are dependent on the storage engine."""
         raise NotImplementedError()
 
-    def create(self, brick):
-        """Should return string identifier of created brick."""
+    def create(self, watcher):
+        """Should return string identifier of created watcher."""
         raise NotImplementedError()
 
     def update(self, identifier, updates):
@@ -52,18 +52,18 @@ class AbstractBrickStore(object):
         raise NotImplementedError()
 
     def upcoming_deadlines(self):
-        """Return an iterator which yields bricks (same as returned by
+        """Return an iterator which yields watchers (same as returned by
         get()) that are unpaused and not yet late, sorted by deadline
-        in increasing order, i.e., the brick that will pass its
+        in increasing order, i.e., the watcher that will pass its
         deadline soonest is returned first."""
         return NotImplementedError()
 
     def delete(self, identifier):
-        """Raise KeyError if a brick with the specified identifier
+        """Raise KeyError if a watcher with the specified identifier
         doesn't exist."""
         raise NotImplementedError()
 
     def find_identifier(self, slug):
-        """Should raise KeyError if a brick with the specified slug
+        """Should raise KeyError if a watcher with the specified slug
         does not exist, or return the identifier string."""
         raise NotImplementedError()

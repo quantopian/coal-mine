@@ -16,17 +16,17 @@
 MongoDB store for Night's Watch
 """
 
-from nights_watch.abstract_store import AbstractBrickStore
+from nights_watch.abstract_store import AbstractStore
 import bson
 from copy import copy
 from logbook import Logger
 import pymongo
 import time
 
-log = Logger('MongoBrickStore')
+log = Logger('MongoStore')
 
 
-class MongoBrickStore(AbstractBrickStore):
+class MongoStore(AbstractStore):
     def __init__(self, hosts, database, username, password, **kwargs):
         """Keyword arguments are the same as what would be passed to
         MongoClient or MongoReplicaSetClient."""
@@ -40,7 +40,7 @@ class MongoBrickStore(AbstractBrickStore):
         if username or password:
             db.authenticate(username, password)
         self.db = db
-        self.collection = self.db['bricks']
+        self.collection = self.db['watchers']
 
         self.collection.ensure_index([('id', pymongo.ASCENDING)],
                                      unique=True)
@@ -58,12 +58,12 @@ class MongoBrickStore(AbstractBrickStore):
         self.collection.ensure_index([('slug', pymongo.ASCENDING)],
                                      unique=True)
 
-    def create(self, brick):
-        brick['_id'] = bson.ObjectId()
+    def create(self, watcher):
+        watcher['_id'] = bson.ObjectId()
         while True:
             try:
-                self.collection.save(brick)
-                del brick['_id']
+                self.collection.save(watcher)
+                del watcher['_id']
                 break
             except pymongo.errors.AutoReconnect:
                 log.exception('save failure, retrying')
@@ -90,11 +90,11 @@ class MongoBrickStore(AbstractBrickStore):
     def get(self, identifier):
         while True:
             try:
-                brick = self.collection.find_one({'id': identifier},
-                                                 fields={'_id': False})
-                if not brick:
-                    raise KeyError('No such brick {}'.format(identifier))
-                return brick
+                watcher = self.collection.find_one({'id': identifier},
+                                                   fields={'_id': False})
+                if not watcher:
+                    raise KeyError('No such watcher {}'.format(identifier))
+                return watcher
             except pymongo.errors.AutoReconnect:
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
@@ -120,9 +120,9 @@ class MongoBrickStore(AbstractBrickStore):
 
         while True:
             try:
-                for brick in self.collection.find(spec, fields=fields,
-                                                  sort=order_by, skip=skip):
-                    yield brick
+                for watcher in self.collection.find(spec, fields=fields,
+                                                    sort=order_by, skip=skip):
+                    yield watcher
                 break
             except pymongo.errors.AutoReconnect:
                 log.exception('find failure, retrying')
@@ -137,7 +137,7 @@ class MongoBrickStore(AbstractBrickStore):
             try:
                 result = self.collection.remove({'id': identifier})
                 if result['n'] == 0:
-                    raise KeyError('No such brick {}'.format(identifier))
+                    raise KeyError('No such watcher {}'.format(identifier))
                 return
             except pymongo.errors.AutoReconnect:
                 log.exception('remove failure, retrying')
@@ -148,7 +148,7 @@ class MongoBrickStore(AbstractBrickStore):
             try:
                 result = self.collection.find_one({'slug': slug})
                 if not result:
-                    raise KeyError('No such brick {}'.format(slug))
+                    raise KeyError('No such watcher {}'.format(slug))
                 return result['id']
             except pymongo.errors.AutoReconnect:
                 log.exception('find_one failure, retrying')
