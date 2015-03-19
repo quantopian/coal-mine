@@ -362,7 +362,7 @@ class LogbookWSGIRequestHandler(WSGIRequestHandler):
     def log_message(self, format, *args):
         msg = format % args
         msg = re.sub(r'\b(auth_key=)[^&;]+', r'\1<key>', msg)
-        log.info("%s - - %s\n" % (self.address_string(), msg))
+        log.info("%s - - %s" % (self.address_string(), msg))
 
 
 if __name__ == '__main__':
