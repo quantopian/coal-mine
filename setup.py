@@ -1,5 +1,9 @@
+import sys
 from pypandoc import convert
 from setuptools import setup, find_packages
+
+if sys.version_info[0] < 3:
+    sys.exit("This package does not work with Python 2.")
 
 setup(
     name="nights_watch",
