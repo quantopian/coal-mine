@@ -350,9 +350,9 @@ Alternatives
 
 Alternatives to Night's Watch include:
 
-* (Dead Man's Snitch)[https://deadmanssnitch.com/]
-* (Cronitor.io)[https://cronitor.io/]
-* (Sheriff)(https://github.com/dawanda/sheriff)
+* [Dead Man's Snitch](https://deadmanssnitch.com/)
+* [Cronitor.io](https://cronitor.io/)
+* [Sheriff](https://github.com/dawanda/sheriff)
 
 We chose to write something new, rather than using what's already out
 there, for several reasons:
