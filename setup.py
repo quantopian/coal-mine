@@ -2,11 +2,11 @@ from pypandoc import convert
 from setuptools import setup, find_packages
 
 setup(
-    name="Night's Watch",
+    name="nights_watch",
     version='0.1',
     author='Quantopian Inc.',
     author_email='opensource@quantopian.com',
-    description='Periodic task execution monitor',
+    description="Night's Watch - Periodic task execution monitor",
     long_description=convert('README.md', 'rst'),
     license='Apache 2.0',
     classifiers=[
