@@ -30,7 +30,7 @@ setup(
     install_requires=open('requirements.txt').read(),
     entry_points={
         'console_scripts': [
-            "nights-watch = nights_watch.server:main"
+            "nights-watch = nights_watch.server:main",
             "nwcli = nights_watch.cli:main"
         ]
     },
