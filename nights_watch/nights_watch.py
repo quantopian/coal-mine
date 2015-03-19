@@ -48,14 +48,14 @@ def main():
 
     try:
         logfile = config.get('logging', 'file')
-        try:
-            rotating = config.getboolean('logging', 'rotate')
+        rotating = config.getboolean('logging', 'rotate', fallback=False)
+        if rotating:
             max_size = config.get('logging', 'max_size', fallback=1048576)
             backup_count = config.get('logging', 'backup_count', fallback=5)
             handler = logbook.RotatingFileHandler(logfile, max_size=max_size,
                                                   backup_count=backup_count)
             print('rotating')
-        except:
+        else:
             handler = logbook.FileHandler(logfile)
         handler.push_application()
     except:
