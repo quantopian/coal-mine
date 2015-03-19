@@ -96,7 +96,7 @@ def main():
     except:
         log.warning('Server authentication DISABLED')
 
-    httpd = make_server('localhost', listen_port, application,
+    httpd = make_server('', listen_port, application,
                         handler_class=LogbookWSGIRequestHandler)
     business_logic.schedule_next_deadline()
     httpd.serve_forever()
