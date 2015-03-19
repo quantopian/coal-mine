@@ -27,9 +27,11 @@ For development, requirements listed in requirements_dev.txt.
 Usage examples
 --------------
 
+### Example commands
+
     $ nights-watch &
     [1] 7564
-    $ curl 'http://localhost:8080/nights-watch/v1/watcher/create?name=My+First+Watcher&periodicity=3600'
+    $ curl 'http://nights-watch-server/nights-watch/v1/watcher/create?name=My+First+Watcher&periodicity=3600'
     {
         "status": "ok",
         "watcher": {
@@ -50,19 +52,19 @@ Usage examples
             "late": false
         }
     }
-    $ curl 'http://localhost:8080/fbkvlsby?comment=shot+form+trigger+url'
+    $ curl 'http://nights-watch-server/fbkvlsby?comment=short+form+trigger+url'
     {
         "recovered": false,
         "unpaused": false,
         "status": "ok"
     }
-    $ curl 'http://localhost:8080/nights-watch/v1/watcher/trigger?slug=my-first-watcher&comment=long+form+trigger+url'
+    $ curl 'http://nights-watch-server/nights-watch/v1/watcher/trigger?slug=my-first-watcher&comment=long+form+trigger+url'
     {
         "recovered": false,
         "unpaused": false,
         "status": "ok"
     }
-    $ curl 'http://localhost:8080/nights-watch/v1/watcher/get?name=My+First+Watcher'
+    $ curl 'http://nights-watch-server/nights-watch/v1/watcher/get?name=My+First+Watcher'
     {
         "watcher": {
             "paused": false,
@@ -93,6 +95,10 @@ Usage examples
     }
 
 All API endpoints are fully documented below.
+
+### Watching a cron job
+
+     0 0 * * * my-backup-script.sh && (curl http://nights-watch-server/fbkvlsby &>/dev/null)
 
 Server configuration
 --------------------
@@ -325,8 +331,51 @@ Optional parameters:
 
 Response is the same as shown for get().
 
-Development philosophy
-----------------------
+Quis custodiet ipsos custodes?
+------------------------------
+
+Obviously, if you're relying on Night's Watch to let you know when
+something is wrong, you need to make sure that Night's Watch itself
+stays running. One way to do that is to have a cron job which
+periodically triggers a watcher and generates output (which crond will
+email to you) if the trigger fails. Something like:
+
+    0 * * * * (curl http://nights-watch-server/atvywzoa | grep -q -s '"status": "ok"') || echo "Failed to trigger watcher."
+
+I also recommend using a log-monitoring service such as Papertrail to
+monitor and alert about errors in the Night's Watch log.
+
+Alternatives
+------------
+
+Alternatives to Night's Watch include:
+
+* (Dead Man's Snitch)[https://deadmanssnitch.com/]
+* (Cronitor.io)[https://cronitor.io/]
+* (Sheriff)(https://github.com/dawanda/sheriff)
+
+We chose to write something new, rather than using what's already out
+there, for several reasons:
+
+* We wanted more control over the stability and reliability of our
+  watch service than the commercial alternatives provide.
+* We wanted fine-grained control over the periodicity of our watches,
+  as well as assurance that we would be notified immediately when a
+  watch is late, something that not all of the alternatives
+  guarantee.
+* We like Python.
+* We like OSS.
+
+Contributors
+------------
+
+Night's Watch was created by Jonathan Kamens, with design help from
+the awesome folks at Quantopian.
+
+Developer notes
+-----------------
+
+### Development philosophy
 
 Use Python.
 
@@ -341,8 +390,7 @@ Minimize external dependencies. If something is simple and
 straightforward to do ourselves, don't use a third-party package just
 for the sake of using a third-party package.
 
-Data model
-----------
+### Data model
 
 For each watcher, we store:
 
@@ -361,12 +409,15 @@ For each watcher, we store:
 
 Timestamps in database are UTC.
 
-To Do
------
+### To Do
 
 (Pull requests welcome!)
 
 Other storage engines.
+
+Other notification mechanisms.
+
+More smtplib configuration options in INI file.
 
 Unit tests would be nice.
 
@@ -376,8 +427,6 @@ Links to Web UI in email notifications.
 
 Repeat notifications if a watcher remains late for an extended period of
 time? Not even sure I want this.
-
-Release to PyPI.
 
 Better authentication?
 
