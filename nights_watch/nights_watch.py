@@ -308,8 +308,8 @@ def handle_list(query, start_response):
     watchers = [jsonify_watcher(watcher)
                 for watcher in business_logic.list(
                     query.get('verbose', False),
-                    query.get('paused', False),
-                    query.get('late', False))]
+                    query.get('paused', None),
+                    query.get('late', None))]
     return ('200 OK', {'status': 'ok', 'watchers': watchers})
 
 
