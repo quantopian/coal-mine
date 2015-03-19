@@ -220,9 +220,9 @@ def boolean_parameters(*args):
                     continue
                 val = query[arg][-1]
                 if val.lower() in ('true', 'yes', '1'):
-                    val = True
+                    query[arg] = True
                 elif val.lower() in ('false', 'no', '0', ''):
-                    val = False
+                    query[arg] = False
                 else:
                     raise Exception(
                         'Bad boolean value "{}" for parameter "{}"'.format(
