@@ -404,7 +404,8 @@ class BusinessLogic(object):
 
         history.insert(0, (now, comment))
 
-        while len(history) > 100 and history[-1][0] < one_week_ago:
+        while len(history) > 1000 or (len(history) > 100 and
+                                      history[-1][0] < one_week_ago):
             history.pop()
 
 

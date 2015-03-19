@@ -405,7 +405,7 @@ For each watcher, we store:
 * late state (boolean)
 * paused state (boolean)
 * deadline for next update
-* history of triggers, a week's worth or 100, whichever is larger
+* history of triggers, pruned when (>1000 or (>100 and older than one week)
 
 Timestamps in database are UTC.
 
