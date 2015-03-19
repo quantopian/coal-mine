@@ -54,7 +54,6 @@ def main():
             backup_count = config.get('logging', 'backup_count', fallback=5)
             handler = logbook.RotatingFileHandler(logfile, max_size=max_size,
                                                   backup_count=backup_count)
-            print('rotating')
         else:
             handler = logbook.FileHandler(logfile)
         handler.push_application()
