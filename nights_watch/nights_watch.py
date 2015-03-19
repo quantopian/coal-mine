@@ -175,6 +175,11 @@ def find_identifier(name_ok=True):
                 slug = query.pop('slug')[-1]
             elif name_ok and 'name' in query:
                 name = query.pop('name')[-1]
+            if not name or slug or identifier:
+                if name_ok:
+                    raise Exception('Must specify id, slug, or name')
+                else:
+                    raise Exception('Muset specify id or slug')
             query['id'] = business_logic.find_identifier(
                 name, slug, identifier)
             return f(query, start_response)
