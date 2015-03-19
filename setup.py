@@ -11,6 +11,7 @@ setup(
     author='Quantopian Inc.',
     author_email='opensource@quantopian.com',
     description="Night's Watch - Periodic task execution monitor",
+    url='https://github.com/quantopian/nights-watch',
     long_description=convert('README.md', 'rst'),
     license='Apache 2.0',
     classifiers=[
