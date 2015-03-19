@@ -24,8 +24,8 @@ Requirements listed in requirements.txt.
 
 For development, requirements listed in requirements_dev.txt.
 
-Usage examples
---------------
+API Usage examples
+------------------
 
 ### Example commands
 
@@ -99,6 +99,27 @@ All API endpoints are fully documented below.
 ### Watching a cron job
 
      0 0 * * * my-backup-script.sh && (curl http://nights-watch-server/fbkvlsby &>/dev/null)
+
+Or use use the CLI!
+-------------------
+
+Use `nwcli` to send commands to the server from the same host or from
+any other host where Night's Watch is installed. You can either
+configure it:
+
+    nwcli configure --host nights-watch-server --port 8080 --auth_key [auth_key in nights-watch.ini]
+
+Or specify `--host`, `--port`, and/or `--auth-key` on the command line
+of each invocation.
+
+Some example commands:
+
+    nwcli create --help
+    # $((60*60*25)) is 25 hours
+    nwcli create --name 'My Second Watcher' --periodicity $((60*60*25))
+    nwcli delete --slug 'my-second-watcher'
+
+Run `nwcli --help` for more information.
 
 Server configuration
 --------------------
