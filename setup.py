@@ -6,12 +6,12 @@ if sys.version_info[0] < 3:
     sys.exit("This package does not work with Python 2.")
 
 setup(
-    name="nights_watch",
+    name="coal_mine",
     version='0.1',
     author='Quantopian Inc.',
     author_email='opensource@quantopian.com',
-    description="Night's Watch - Periodic task execution monitor",
-    url='https://github.com/quantopian/nights-watch',
+    description="Coal Mine - Periodic task execution monitor",
+    url='https://github.com/quantopian/coal-mine',
     long_description=convert('README.md', 'rst'),
     license='Apache 2.0',
     classifiers=[
@@ -30,8 +30,8 @@ setup(
     install_requires=open('requirements.txt').read(),
     entry_points={
         'console_scripts': [
-            "nights-watch = nights_watch.server:main",
-            "nwcli = nights_watch.cli:main"
+            "coal-mine = coal_mine.server:main",
+            "cmcli = coal_mine.cli:main"
         ]
     },
     zip_safe=True,

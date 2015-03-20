@@ -15,25 +15,25 @@
 # permissions and limitations under the License.
 
 """
-Night's Watch WSGI server
+Coal Mine WSGI server
 """
 
-from nights_watch.business_logic import BusinessLogic
+from coal_mine.business_logic import BusinessLogic
 from cgi import parse_qs
 from configparser import SafeConfigParser, NoSectionError, NoOptionError
 from functools import wraps
 import json
 import logbook
-from nights_watch.mongo_store import MongoStore
+from coal_mine.mongo_store import MongoStore
 import os
 import re
 import sys
 from wsgiref.simple_server import make_server, WSGIRequestHandler
 
-config_file = 'nights-watch.ini'
-url_prefix = '/nights-watch/v1/watcher/'
+config_file = 'coal-mine.ini'
+url_prefix = '/coal-mine/v1/canary/'
 
-log = logbook.Logger('nights-watch')
+log = logbook.Logger('coal-mine')
 business_logic = None
 auth_key = None
 
@@ -262,12 +262,12 @@ def handle_exceptions(f):
 @boolean_parameters('paused')
 @valid_parameters('name', 'periodicity', 'description', 'email', 'paused')
 def handle_create(query, start_response):
-    watcher = business_logic.create(query['name'],
-                                    query['periodicity'],
-                                    query.get('description', ''),
-                                    query.get('email', []),
-                                    query.get('paused', False))
-    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
+    canary = business_logic.create(query['name'],
+                                   query['periodicity'],
+                                   query.get('description', ''),
+                                   query.get('email', []),
+                                   query.get('paused', False))
+    return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
 
 @handle_exceptions
@@ -284,33 +284,33 @@ def handle_delete(query, start_response):
 @int_parameters('periodicity')
 @valid_parameters('id', 'name', 'periodicity', 'description', 'email')
 def handle_update(query, start_response):
-    watcher = business_logic.update(query['id'],
-                                    query.get('name', None),
-                                    query.get('periodicity', None),
-                                    query.get('description', None),
-                                    query.get('email', None))
-    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
+    canary = business_logic.update(query['id'],
+                                   query.get('name', None),
+                                   query.get('periodicity', None),
+                                   query.get('description', None),
+                                   query.get('email', None))
+    return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
 
 @handle_exceptions
 @find_identifier()
 @valid_parameters('id')
 def handle_get(query, start_response):
-    watcher = business_logic.get(query['id'])
+    canary = business_logic.get(query['id'])
 
-    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
+    return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
 
 @handle_exceptions
 @boolean_parameters('verbose', 'paused', 'late')
 @valid_parameters('verbose', 'paused', 'late')
 def handle_list(query, start_response):
-    watchers = [jsonify_watcher(watcher)
-                for watcher in business_logic.list(
+    canaries = [jsonify_canary(canary)
+                for canary in business_logic.list(
                     verbose=query.get('verbose', False),
                     paused=query.get('paused', None),
                     late=query.get('late', None))]
-    return ('200 OK', {'status': 'ok', 'watchers': watchers})
+    return ('200 OK', {'status': 'ok', 'canaries': canaries})
 
 
 @handle_exceptions
@@ -329,9 +329,8 @@ def handle_trigger(query, start_response):
 @string_parameters('comment')
 @valid_parameters('id', 'comment')
 def handle_pause(query, start_response):
-    watcher = business_logic.pause(query['id'],
-                                   query.get('comment', ''))
-    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
+    canary = business_logic.pause(query['id'], query.get('comment', ''))
+    return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
 
 @handle_exceptions
@@ -339,23 +338,22 @@ def handle_pause(query, start_response):
 @string_parameters('comment')
 @valid_parameters('id', 'comment')
 def handle_unpause(query, start_response):
-    watcher = business_logic.unpause(query['id'],
-                                     query.get('comment', ''))
-    return ('200 OK', {'status': 'ok', 'watcher': jsonify_watcher(watcher)})
+    canary = business_logic.unpause(query['id'], query.get('comment', ''))
+    return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
 
-def jsonify_watcher(watcher):
-    for key, value in [(k, v) for k, v in watcher.items()]:
+def jsonify_canary(canary):
+    for key, value in [(k, v) for k, v in canary.items()]:
         if value is None:
-            del watcher[key]
+            del canary[key]
 
-    if 'deadline' in watcher:
-        watcher['deadline'] = watcher['deadline'].isoformat()
+    if 'deadline' in canary:
+        canary['deadline'] = canary['deadline'].isoformat()
 
-    if 'history' in watcher:
-        watcher['history'] = tuple((d.isoformat(), c)
-                                   for d, c in watcher['history'])
-    return watcher
+    if 'history' in canary:
+        canary['history'] = tuple((d.isoformat(), c)
+                                  for d, c in canary['history'])
+    return canary
 
 
 class LogbookWSGIRequestHandler(WSGIRequestHandler):

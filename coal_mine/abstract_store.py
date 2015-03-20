@@ -13,7 +13,7 @@
 # permissions and limitations under the License.
 
 """
-Abstract store for Night's Watch
+Abstract store for Coal Mine
 
 Subclass for a specific storage engine.
 """
@@ -32,8 +32,8 @@ class AbstractStore(object, metaclass=ABCMeta):
         raise NotImplementedError('__init__')
 
     @abstractmethod
-    def create(self, watcher):
-        """Should return string identifier of created watcher."""
+    def create(self, canary):
+        """Should return string identifier of created canary."""
         raise NotImplementedError('create')
 
     @abstractmethod
@@ -60,20 +60,20 @@ class AbstractStore(object, metaclass=ABCMeta):
 
     @abstractmethod
     def upcoming_deadlines(self):
-        """Return an iterator which yields watchers (same as returned by
+        """Return an iterator which yields canaries (same as returned by
         get()) that are unpaused and not yet late, sorted by deadline
-        in increasing order, i.e., the watcher that will pass its
+        in increasing order, i.e., the canary that will pass its
         deadline soonest is returned first."""
         raise NotImplementedError('upcoming_deadlines')
 
     @abstractmethod
     def delete(self, identifier):
-        """Raise KeyError if a watcher with the specified identifier
+        """Raise KeyError if a canary with the specified identifier
         doesn't exist."""
         raise NotImplementedError('delete')
 
     @abstractmethod
     def find_identifier(self, slug):
-        """Should raise KeyError if a watcher with the specified slug
+        """Should raise KeyError if a canary with the specified slug
         does not exist, or return the identifier string."""
         raise NotImplementedError('find_identifier')

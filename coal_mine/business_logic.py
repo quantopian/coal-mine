@@ -13,7 +13,7 @@
 # permissions and limitations under the License.
 
 """
-Business logic for Night's Watch
+Business logic for Coal Mine
 """
 
 from copy import copy
@@ -48,110 +48,110 @@ class BusinessLogic(object):
 
     def create(self, name, periodicity, description=None, emails=[],
                paused=False):
-        watcher = {'id': self.create_identifier()}
+        canary = {'id': self.create_identifier()}
 
         if not isinstance(name, str):
             raise TypeError('name must be a string')
         if not name:
             raise TypeError('name must be non-empty')
-        watcher['name'] = name
+        canary['name'] = name
 
         slug = self.slug(name)
         try:
             conflict = self.store.find_identifier(slug)
             raise AlreadyExistsError(
-                'Watcher {} already exists with identifier {}'.format(
+                'Canary {} already exists with identifier {}'.format(
                     slug, conflict))
         except KeyError:
             pass
-        watcher['slug'] = slug
+        canary['slug'] = slug
 
         if not isinstance(periodicity, Number):
             raise TypeError('periodicity must be a number')
         if periodicity <= 0:
             raise TypeError('periodicity must be positive')
-        watcher['periodicity'] = periodicity
+        canary['periodicity'] = periodicity
 
         if not description:
             description = ''
         if not isinstance(description, str):
             raise TypeError('description must be a string')
-        watcher['description'] = description
+        canary['description'] = description
 
         if emails is None:  # Be generous in what you accept...
             emails = []
         if isinstance(emails, str):
             raise TypeError('emails should be a list of zero or more '
                             'addresses')
-        watcher['emails'] = list(emails)
+        canary['emails'] = list(emails)
 
         if not isinstance(paused, bool):
             raise TypeError('paused should be a bool')
-        watcher['paused'] = paused
+        canary['paused'] = paused
 
-        watcher['history'] = [(datetime.datetime.utcnow(), 'Snitch created')]
-        watcher['late'] = False
+        canary['history'] = [(datetime.datetime.utcnow(), 'Snitch created')]
+        canary['late'] = False
 
-        if not watcher['paused']:
-            watcher['deadline'] = watcher['history'][0][0] + \
+        if not canary['paused']:
+            canary['deadline'] = canary['history'][0][0] + \
                 datetime.timedelta(seconds=periodicity)
 
-        self.store.create(watcher)
+        self.store.create(canary)
 
-        log.info('Created watcher {} ({})'.format(watcher['id'],
-                                                  watcher_log_string(watcher)))
+        log.info('Created canary {} ({})'.format(canary['id'],
+                                                 canary_log_string(canary)))
 
         self.schedule_next_deadline()
 
-        return watcher
+        return canary
 
     def update(self, identifier, name=None, periodicity=None,
                description=None, emails=None):
-        watcher = self.store.get(identifier)
+        canary = self.store.get(identifier)
         updates = {}
         notify = False
 
-        if name is not None and name != watcher['name']:
+        if name is not None and name != canary['name']:
             if not isinstance(name, str):
                 raise TypeError('name must be a string')
             if not name:
                 raise TypeError('name must be non-empty')
-            old_slug = watcher['slug']
+            old_slug = canary['slug']
             new_slug = self.slug(name)
             if old_slug != new_slug:
                 try:
                     conflict = self.find_identifier(new_slug)
                     raise AlreadyExistsError(
-                        "Watcher {} already exists with identifier {}".
+                        "Canary {} already exists with identifier {}".
                         format(new_slug, conflict))
                 except KeyError:
                     pass
                 updates['slug'] = new_slug
             updates['name'] = name
 
-        if periodicity is not None and periodicity != watcher['periodicity']:
+        if periodicity is not None and periodicity != canary['periodicity']:
             if not isinstance(periodicity, Number):
                 raise TypeError('periodicity must be a number')
             if periodicity <= 0:
                 raise TypeError('periodicity must be positive')
             updates['periodicity'] = periodicity
 
-            if not watcher['paused']:
-                updates['deadline'] = watcher['history'][0][0] + \
+            if not canary['paused']:
+                updates['deadline'] = canary['history'][0][0] + \
                     datetime.timedelta(seconds=periodicity)
                 is_late = updates['deadline'] < datetime.datetime.utcnow()
-                if is_late != watcher['late']:
+                if is_late != canary['late']:
                     updates['late'] = is_late
                     notify = True
 
-        if description is not None and description != watcher['description']:
+        if description is not None and description != canary['description']:
             if not isinstance(description, str):
                 raise TypeError('description must be a string')
             updates['description'] = description
 
         if emails is None:  # dummy caller specified None
             emails = []
-        if emails is not None and set(emails) != set(watcher['emails']):
+        if emails is not None and set(emails) != set(canary['emails']):
             if isinstance(emails, str):
                 raise TypeError('emails should be a list of zero or more '
                                 'addresses')
@@ -161,58 +161,58 @@ class BusinessLogic(object):
             raise ValueError('No updates specified')
 
         self.store.update(identifier, updates)
-        watcher.update(updates)
+        canary.update(updates)
 
-        log.info('Updated watcher {} ({}, {})'.format(
-            watcher['name'], identifier, watcher_log_string(updates)))
+        log.info('Updated canary {} ({}, {})'.format(
+            canary['name'], identifier, canary_log_string(updates)))
 
         if notify:
-            self.notify(watcher)
+            self.notify(canary)
 
         self.schedule_next_deadline()
 
-        return watcher
+        return canary
 
     def trigger(self, identifier, comment=None):
-        watcher = self.store.get(identifier)
+        canary = self.store.get(identifier)
         updates = {}
-        was_late = watcher['late']
-        was_paused = watcher['paused']
+        was_late = canary['late']
+        was_paused = canary['paused']
 
         if comment:
             comment = 'Triggered ({})'.format(comment)
         else:
             comment = 'Triggered'
 
-        history = copy(watcher['history'])
+        history = copy(canary['history'])
         self.add_history(history, comment)
         updates['history'] = history
 
         updates['deadline'] = history[0][0] + \
-            datetime.timedelta(seconds=watcher['periodicity'])
-        if watcher['late']:
+            datetime.timedelta(seconds=canary['periodicity'])
+        if canary['late']:
             updates['late'] = False
-        if watcher['paused']:
+        if canary['paused']:
             updates['paused'] = False
 
         self.store.update(identifier, updates)
-        watcher.update(updates)
+        canary.update(updates)
 
-        log.info('Triggered watcher {} ({}, {}, {})'.format(
-            watcher['name'], identifier, comment, watcher_log_string(updates)))
+        log.info('Triggered canary {} ({}, {}, {})'.format(
+            canary['name'], identifier, comment, canary_log_string(updates)))
 
         if 'late' in updates:
-            self.notify(watcher)
+            self.notify(canary)
 
         self.schedule_next_deadline()
 
         return (was_late, was_paused)
 
     def pause(self, identifier, comment=None):
-        watcher = self.store.get(identifier)
+        canary = self.store.get(identifier)
         updates = {}
 
-        if watcher['paused']:
+        if canary['paused']:
             raise AlreadyPausedError()
 
         updates['paused'] = True
@@ -222,30 +222,30 @@ class BusinessLogic(object):
         else:
             comment = 'Paused'
 
-        history = copy(watcher['history'])
+        history = copy(canary['history'])
         self.add_history(history, comment)
         updates['history'] = history
 
         updates['deadline'] = None
 
-        if watcher['late']:
+        if canary['late']:
             updates['late'] = False
 
         self.store.update(identifier, updates)
-        watcher.update(updates)
+        canary.update(updates)
 
-        log.info('Paused watcher {} ({}, {}, {})'.format(
-            watcher['name'], identifier, comment, watcher_log_string(updates)))
+        log.info('Paused canary {} ({}, {}, {})'.format(
+            canary['name'], identifier, comment, canary_log_string(updates)))
 
         self.schedule_next_deadline()
 
-        return watcher
+        return canary
 
     def unpause(self, identifier, comment=None):
-        watcher = self.store.get(identifier)
+        canary = self.store.get(identifier)
         updates = {}
 
-        if not watcher['paused']:
+        if not canary['paused']:
             raise AlreadyUnpausedError()
 
         updates['paused'] = False
@@ -255,28 +255,28 @@ class BusinessLogic(object):
         else:
             comment = 'Unpaused'
 
-        history = copy(watcher['history'])
+        history = copy(canary['history'])
         self.add_history(history, comment)
         updates['history'] = history
 
         updates['deadline'] = history[0][0] + \
-            datetime.timedelta(seconds=watcher['periodicity'])
+            datetime.timedelta(seconds=canary['periodicity'])
 
         self.store.update(identifier, updates)
-        watcher.update(updates)
+        canary.update(updates)
 
-        log.info('Unpaused watcher {} ({}, {}, {})'.format(
-            watcher['name'], identifier, comment, watcher_log_string(updates)))
+        log.info('Unpaused canary {} ({}, {}, {})'.format(
+            canary['name'], identifier, comment, canary_log_string(updates)))
 
         self.schedule_next_deadline()
 
-        return watcher
+        return canary
 
     def delete(self, identifier):
-        watcher = self.store.get(identifier)
+        canary = self.store.get(identifier)
         self.store.delete(identifier)
 
-        log.info('Deleted watcher {} ({})'.format(watcher['name'], identifier))
+        log.info('Deleted canary {} ({})'.format(canary['name'], identifier))
 
         self.schedule_next_deadline()
 
@@ -291,32 +291,32 @@ class BusinessLogic(object):
             late=late,
         )
 
-    def notify(self, watcher):
-        if watcher['late']:
-            subject = '[LATE] {} has not reported'.format(watcher['name'])
+    def notify(self, canary):
+        if canary['late']:
+            subject = '[LATE] {} has not reported'.format(canary['name'])
         else:
-            subject = '[RESUMED] {} is reporting again'.format(watcher['name'])
+            subject = '[RESUMED] {} is reporting again'.format(canary['name'])
 
-        if not watcher['emails']:
-            log.info('No emails for watcher {} ({}, {})'.format(
-                watcher['name'], watcher['id'], subject))
+        if not canary['emails']:
+            log.info('No emails for canary {} ({}, {})'.format(
+                canary['name'], canary['id'], subject))
             return
 
         body = ''
 
-        if watcher['late']:
-            body += 'The watcher {} ({}) was expected to report before {}.'.\
-                format(watcher['name'], watcher['id'], watcher['deadline'])
+        if canary['late']:
+            body += 'The canary {} ({}) was expected to report before {}.'.\
+                format(canary['name'], canary['id'], canary['deadline'])
         else:
-            body += 'The watcher {} ({}) is reporting again as of {}.\n'.\
-                format(watcher['name'], watcher['id'],
-                       watcher['history'][0][0])
-            body += '\nThe next trigger for this watcher is due before {}.\n'.\
-                format(watcher['deadline'])
+            body += 'The canary {} ({}) is reporting again as of {}.\n'.\
+                format(canary['name'], canary['id'],
+                       canary['history'][0][0])
+            body += '\nThe next trigger for this canary is due before {}.\n'.\
+                format(canary['deadline'])
 
-        body += '\nRecent events for this watcher:\n\n'
+        body += '\nRecent events for this canary:\n\n'
 
-        for event in watcher['history'][0:15]:
+        for event in canary['history'][0:15]:
             # For some reason, when I omit the str() wrapper around
             # the datetime, the resulting string contains "30" instead
             # of the stringified datetime. I'm sure there's a good
@@ -326,45 +326,45 @@ class BusinessLogic(object):
         try:
             smtp = smtplib.SMTP()
             smtp.connect()
-            smtp.sendmail(self.email_sender, watcher['emails'],
+            smtp.sendmail(self.email_sender, canary['emails'],
                           'From: {}\nTo: {}\nSubject: {}\n\n{}'.format(
                               self.email_sender,
-                              ', '.join(watcher['emails']),
+                              ', '.join(canary['emails']),
                               subject,
                               body))
             smtp.quit()
         except:
-            log.exception('Notify failed for watcher {} ({}, {})'.format(
-                watcher['name'], watcher['id'], subject))
+            log.exception('Notify failed for canary {} ({}, {})'.format(
+                canary['name'], canary['id'], subject))
         else:
-            log.info('Notified for watcher {} ({}, {})'.format(
-                watcher['name'], watcher['id'], subject))
+            log.info('Notified for canary {} ({}, {})'.format(
+                canary['name'], canary['id'], subject))
 
-    def schedule_next_deadline(self, watcher=None):
-        if not watcher:
+    def schedule_next_deadline(self, canary=None):
+        if not canary:
             try:
-                watcher = next(self.store.upcoming_deadlines())
+                canary = next(self.store.upcoming_deadlines())
             except StopIteration:
                 return
-        when = max(1, (watcher['deadline'] - datetime.datetime.utcnow()).
+        when = max(1, (canary['deadline'] - datetime.datetime.utcnow()).
                    total_seconds())
 
-        log.info('Setting alarm for watcher {} ({}) at {}'.format(
-            watcher['name'], watcher['id'], str(watcher['deadline'])))
+        log.info('Setting alarm for canary {} ({}) at {}'.format(
+            canary['name'], canary['id'], str(canary['deadline'])))
         signal.signal(signal.SIGALRM, self.deadline_handler)
         signal.alarm(int(math.ceil(when)))
 
     def deadline_handler(self, signum, frame):
         now = datetime.datetime.utcnow()
 
-        for watcher in self.store.upcoming_deadlines():
-            if watcher['deadline'] <= now:
+        for canary in self.store.upcoming_deadlines():
+            if canary['deadline'] <= now:
                 updates = {'late': True}
-                self.store.update(watcher['id'], updates)
-                watcher.update(updates)
-                self.notify(watcher)
+                self.store.update(canary['id'], updates)
+                canary.update(updates)
+                self.notify(canary)
             else:
-                self.schedule_next_deadline(watcher)
+                self.schedule_next_deadline(canary)
                 return
 
     def slug(self, name):
@@ -413,11 +413,11 @@ class BusinessLogic(object):
             history.pop()
 
 
-def watcher_log_string(watcher):
-    new_watcher = copy(watcher)
-    if 'history' in watcher and watcher['history']:
-        new_watcher['history'] = [(str(watcher['history'][0][0]),
-                                   watcher['history'][0][1])]
-        if len(watcher['history']) > 1:
-            new_watcher['history'].append('...')
-    return str(new_watcher)
+def canary_log_string(canary):
+    new_canary = copy(canary)
+    if 'history' in canary and canary['history']:
+        new_canary['history'] = [(str(canary['history'][0][0]),
+                                  canary['history'][0][1])]
+        if len(canary['history']) > 1:
+            new_canary['history'].append('...')
+    return str(new_canary)

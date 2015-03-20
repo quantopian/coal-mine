@@ -13,10 +13,10 @@
 # permissions and limitations under the License.
 
 """
-MongoDB store for Night's Watch
+MongoDB store for Coal Mine
 """
 
-from nights_watch.abstract_store import AbstractStore
+from coal_mine.abstract_store import AbstractStore
 import bson
 from copy import copy
 from logbook import Logger
@@ -40,7 +40,7 @@ class MongoStore(AbstractStore):
         if username or password:
             db.authenticate(username, password)
         self.db = db
-        self.collection = self.db['watchers']
+        self.collection = self.db['canaries']
 
         self.collection.ensure_index([('id', pymongo.ASCENDING)],
                                      unique=True)
@@ -58,12 +58,12 @@ class MongoStore(AbstractStore):
         self.collection.ensure_index([('slug', pymongo.ASCENDING)],
                                      unique=True)
 
-    def create(self, watcher):
-        watcher['_id'] = bson.ObjectId()
+    def create(self, canary):
+        canary['_id'] = bson.ObjectId()
         while True:
             try:
-                self.collection.save(watcher)
-                del watcher['_id']
+                self.collection.save(canary)
+                del canary['_id']
                 break
             except pymongo.errors.AutoReconnect:
                 log.exception('save failure, retrying')
@@ -90,11 +90,11 @@ class MongoStore(AbstractStore):
     def get(self, identifier):
         while True:
             try:
-                watcher = self.collection.find_one({'id': identifier},
-                                                   fields={'_id': False})
-                if not watcher:
-                    raise KeyError('No such watcher {}'.format(identifier))
-                return watcher
+                canary = self.collection.find_one({'id': identifier},
+                                                  fields={'_id': False})
+                if not canary:
+                    raise KeyError('No such canary {}'.format(identifier))
+                return canary
             except pymongo.errors.AutoReconnect:
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
@@ -120,9 +120,9 @@ class MongoStore(AbstractStore):
 
         while True:
             try:
-                for watcher in self.collection.find(spec, fields=fields,
-                                                    sort=order_by, skip=skip):
-                    yield watcher
+                for canary in self.collection.find(spec, fields=fields,
+                                                   sort=order_by, skip=skip):
+                    yield canary
                 break
             except pymongo.errors.AutoReconnect:
                 log.exception('find failure, retrying')
@@ -137,7 +137,7 @@ class MongoStore(AbstractStore):
             try:
                 result = self.collection.remove({'id': identifier})
                 if result['n'] == 0:
-                    raise KeyError('No such watcher {}'.format(identifier))
+                    raise KeyError('No such canary {}'.format(identifier))
                 return
             except pymongo.errors.AutoReconnect:
                 log.exception('remove failure, retrying')
@@ -148,7 +148,7 @@ class MongoStore(AbstractStore):
             try:
                 result = self.collection.find_one({'slug': slug})
                 if not result:
-                    raise KeyError('No such watcher {}'.format(slug))
+                    raise KeyError('No such canary {}'.format(slug))
                 return result['id']
             except pymongo.errors.AutoReconnect:
                 log.exception('find_one failure, retrying')

@@ -15,7 +15,7 @@
 # permissions and limitations under the License.
 
 """
-Night's Watch CLI
+Coal Mine CLI
 """
 
 import argparse
@@ -25,8 +25,8 @@ import pprint
 import requests
 import sys
 
-config_file = '~/.nights-watch.ini'
-config_section = 'nights-watch'
+config_file = '~/.coal-mine.ini'
+config_section = 'coal-mine'
 
 
 def main():
@@ -35,8 +35,8 @@ def main():
     try:
         section = config[config_section]
     except KeyError:
-        config['nights-watch'] = {}
-        section = config['nights-watch']
+        config['coal-mine'] = {}
+        section = config['coal-mine']
 
     connect_parser = argparse.ArgumentParser(add_help=False)
     connect_parser.add_argument('--host', action='store',
@@ -53,8 +53,8 @@ def main():
                                 help='Disable authentication',
                                 default=False)
 
-    parser = argparse.ArgumentParser(description="CLI wrapper for Night's "
-                                     "Watch HTTP API")
+    parser = argparse.ArgumentParser(description="CLI wrapper for Coal "
+                                     "Mine's HTTP API")
     subparsers = parser.add_subparsers()
 
     configure_parser = subparsers.add_parser('configure', help='Save '
@@ -64,7 +64,7 @@ def main():
     configure_parser.set_defaults(func=handle_configure,
                                   config_parser=config)
 
-    create_parser = subparsers.add_parser('create', help='Create watcher',
+    create_parser = subparsers.add_parser('create', help='Create canary',
                                           parents=[connect_parser])
     create_parser.add_argument('--name', action='store', required=True)
     create_parser.add_argument('--periodicity', action='store', type=int,
@@ -80,11 +80,11 @@ def main():
     id_parser_group.add_argument('--slug', action='store')
     id_parser_group.add_argument('--id', action='store')
 
-    delete_parser = subparsers.add_parser('delete', help='Delete watcher',
+    delete_parser = subparsers.add_parser('delete', help='Delete canary',
                                           parents=[connect_parser, id_parser])
     delete_parser.set_defaults(func=handle_delete)
 
-    update_parser = subparsers.add_parser('update', help='Update watcher',
+    update_parser = subparsers.add_parser('update', help='Update canary',
                                           parents=[connect_parser])
     update_parser.add_argument('--name', action='store')
     update_parser_group = update_parser.add_mutually_exclusive_group()
@@ -96,11 +96,11 @@ def main():
     update_parser.add_argument('--email', action='append')
     update_parser.set_defaults(func=handle_update)
 
-    get_parser = subparsers.add_parser('get', help='Get watcher',
+    get_parser = subparsers.add_parser('get', help='Get canary',
                                        parents=[connect_parser, id_parser])
     get_parser.set_defaults(func=handle_get)
 
-    list_parser = subparsers.add_parser('list', help='List watchers',
+    list_parser = subparsers.add_parser('list', help='List canaries',
                                         parents=[connect_parser])
     list_parser.add_argument('--verbose', action='store_true', default=None)
     paused_group = list_parser.add_mutually_exclusive_group()
@@ -113,17 +113,17 @@ def main():
                             action='store_false', default=None)
     list_parser.set_defaults(func=handle_list)
 
-    trigger_parser = subparsers.add_parser('trigger', help='Trigger watcher',
+    trigger_parser = subparsers.add_parser('trigger', help='Trigger canary',
                                            parents=[connect_parser, id_parser])
     trigger_parser.add_argument('--comment', action='store')
     trigger_parser.set_defaults(func=handle_trigger)
 
-    pause_parser = subparsers.add_parser('pause', help='Pause watcher',
+    pause_parser = subparsers.add_parser('pause', help='Pause canary',
                                          parents=[connect_parser, id_parser])
     pause_parser.add_argument('--comment', action='store')
     pause_parser.set_defaults(func=handle_pause)
 
-    unpause_parser = subparsers.add_parser('unpause', help='Unpause watcher',
+    unpause_parser = subparsers.add_parser('unpause', help='Unpause canary',
                                            parents=[connect_parser, id_parser])
     unpause_parser.add_argument('--comment', action='store')
     unpause_parser.set_defaults(func=handle_unpause)
@@ -163,7 +163,7 @@ def handle_update(args):
     if args.name and not (args.id or args.slug):
         found = call('get', args, {'name': args.name}, action='return')
         del args.name
-        args.id = found['watcher']['id']
+        args.id = found['canary']['id']
     call('update', args)
 
 
@@ -195,7 +195,7 @@ def handle_unpause(args):
 
 
 def call(command, args, payload=None, action='print'):
-    url = 'http://{}:{}/nights-watch/v1/watcher/{}'.format(
+    url = 'http://{}:{}/coal-mine/v1/canary/{}'.format(
         args.host, args.port, command)
     if payload:
         if args.auth_key:
