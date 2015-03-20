@@ -139,7 +139,8 @@ Here's what can go in the config file:
 * [mongodb] - required
   * hosts - the first argument to pymongo's MongoClient or
     MongoReplicaSetClient
-  * database - database name
+  * database - database name. Coal Mine will create only one
+    collection in the database, called "canaries". 
   * username - must be specified, but can be blank if no
     authentication is required
   * password - must be specified, but can be blank if no
