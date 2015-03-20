@@ -305,7 +305,7 @@ class BusinessLogic(object):
         body = ''
 
         if canary['late']:
-            body += 'The canary {} ({}) was expected to report before {}.'.\
+            body += 'The canary {} ({}) was expected to report before {}.\n'.\
                 format(canary['name'], canary['id'], canary['deadline'])
         else:
             body += 'The canary {} ({}) is reporting again as of {}.\n'.\
