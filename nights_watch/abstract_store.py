@@ -26,6 +26,7 @@ class AlreadyExistsError(Exception):
 
 
 class AbstractStore(object, metaclass=ABCMeta):
+    @abstractmethod
     def __init__(self, *args, **kwargs):
         """Args and behavior are dependent on the storage engine."""
         raise NotImplementedError('__init__')
@@ -63,7 +64,7 @@ class AbstractStore(object, metaclass=ABCMeta):
         get()) that are unpaused and not yet late, sorted by deadline
         in increasing order, i.e., the watcher that will pass its
         deadline soonest is returned first."""
-        return NotImplementedError('upcoming_deadlines')
+        raise NotImplementedError('upcoming_deadlines')
 
     @abstractmethod
     def delete(self, identifier):
