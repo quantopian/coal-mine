@@ -1,6 +1,8 @@
 Coal Mine - Periodic task execution monitor
 ===============================================
 
+(Releases are available [in PyPI](https://pypi.python.org/pypi/coal_mine).)
+
 Track tasks that are supposed to execute periodically using "canaries"
 that the tasks trigger when they execute. Alert by email when a canary
 is late. Alert again when a late canary resumes. Keep a partial
