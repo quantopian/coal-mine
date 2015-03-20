@@ -315,11 +315,11 @@ def handle_list(query, start_response):
 
 @handle_exceptions
 @find_identifier()
-@string_parameters('comment')
-@valid_parameters('id', 'comment')
+@string_parameters('comment', 'm')
+@valid_parameters('id', 'comment', 'm')
 def handle_trigger(query, start_response):
-    (recovered, unpaused) = business_logic.trigger(query['id'],
-                                                   query.get('comment', ''))
+    comment = query.get('comment', query.get('m', ''))
+    (recovered, unpaused) = business_logic.trigger(query['id'], comment)
     return ('200 OK',
             {'status': 'ok', 'recovered': recovered, 'unpaused': unpaused})
 
