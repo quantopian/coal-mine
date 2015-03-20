@@ -50,7 +50,7 @@ class AbstractStore(object, metaclass=ABCMeta):
         raise NotImplementedError('get')
 
     @abstractmethod
-    def list(self, verbose=False, paused=None, late=None):
+    def list(self, *, verbose=False, paused=None, late=None):
         """Return an iterator which yields dicts. If verbose is False,
         then the dicts contain only name and id, otherwise, all fields
         (same as returned by get()) are returned. If paused and/or

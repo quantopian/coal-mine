@@ -99,7 +99,7 @@ class MongoStore(AbstractStore):
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
 
-    def list(self, verbose=False, paused=None, late=None, order_by=None):
+    def list(self, *, verbose=False, paused=None, late=None, order_by=None):
         if verbose:
             fields = {'_id': False}
         else:
