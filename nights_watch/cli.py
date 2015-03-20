@@ -20,7 +20,6 @@ Night's Watch CLI
 
 import argparse
 from configparser import SafeConfigParser
-import json
 import os
 import pprint
 import requests

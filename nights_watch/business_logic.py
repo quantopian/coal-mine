@@ -283,9 +283,13 @@ class BusinessLogic(object):
     def get(self, identifier):
         return self.store.get(identifier)
 
-    def list(self, verbose=False, paused=None, late=None):
+    def list(self, *, verbose=False, paused=None, late=None):
         """N.B.: Returns an iterator."""
-        return self.store.list(verbose, paused, late)
+        return self.store.list(
+            verbose=verbose,
+            paused=paused,
+            late=late,
+        )
 
     def notify(self, watcher):
         if watcher['late']:
