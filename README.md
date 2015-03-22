@@ -395,7 +395,18 @@ Contributors
 ------------
 
 Coal Mine was created by Jonathan Kamens, with design help from the
-awesome folks at Quantopian.
+awesome folks at [Quantopian](https://www.quantopian.com/). Thanks,
+also, to Quantopian for supporting the development and open-sourcing
+of this project.
+
+Contacts
+--------
+
+[Github](https://github.com/quantopian/coal-mine)
+
+[Email](mailto:opensource@quantopian.com)
+
+[PyPI](https://pypi.python.org/pypi/coal_mine)
 
 Developer notes
 -----------------
