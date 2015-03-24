@@ -51,11 +51,14 @@ class AbstractStore(object, metaclass=ABCMeta):
         raise NotImplementedError('get')
 
     @abstractmethod
-    def list(self, *, verbose=False, paused=None, late=None):
-        """Return an iterator which yields dicts. If verbose is False,
-        then the dicts contain only name and id, otherwise, all fields
-        (same as returned by get()) are returned. If paused and/or
-        late are specified, they are used to filter the results."""
+    def list(self, *, verbose=False, paused=None, late=None, search=None):
+        """Return an iterator which yields dicts. If verbose is False, then
+        the dicts contain only name and id, otherwise, all fields
+        (same as returned by get()) are returned. If paused, late,
+        and/or search are specified, they are used to filter the
+        results. The latter is a regular expression (string, not
+        regular expression object), which is matched against the name,
+        slug, and id of canaries and only matches are returned."""
         raise NotImplementedError('list')
 
     @abstractmethod

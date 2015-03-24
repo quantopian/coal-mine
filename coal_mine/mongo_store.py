@@ -21,6 +21,7 @@ import bson
 from copy import copy
 from logbook import Logger
 import pymongo
+import re
 import time
 
 log = Logger('MongoStore')
@@ -99,7 +100,8 @@ class MongoStore(AbstractStore):
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
 
-    def list(self, *, verbose=False, paused=None, late=None, order_by=None):
+    def list(self, *, verbose=False, paused=None, late=None, search=None,
+             order_by=None):
         if verbose:
             fields = {'_id': False}
         else:
@@ -115,6 +117,10 @@ class MongoStore(AbstractStore):
 
         if order_by is not None:
             order_by = [(order_by, pymongo.ASCENDING)]
+
+        if search is not None:
+            search = re.compile(search)
+            spec['$or'] = [{'name': search}, {'slug': search}, {'id': search}]
 
         skip = 0
 

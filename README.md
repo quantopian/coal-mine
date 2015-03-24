@@ -275,6 +275,8 @@ Optional parameters:
 * verbose - include all query output for each canary
 * paused - boolean, whether to list paused / unpaused canaries only
 * late - boolean, whether to list late / timely canaries only
+* search - string, regular expression to match against name, identifier, and
+  slug
 
 Response:
 

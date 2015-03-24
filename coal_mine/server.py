@@ -303,13 +303,15 @@ def handle_get(query, start_response):
 
 @handle_exceptions
 @boolean_parameters('verbose', 'paused', 'late')
-@valid_parameters('verbose', 'paused', 'late')
+@string_parameters('search')
+@valid_parameters('verbose', 'paused', 'late', 'search')
 def handle_list(query, start_response):
     canaries = [jsonify_canary(canary)
                 for canary in business_logic.list(
                     verbose=query.get('verbose', False),
                     paused=query.get('paused', None),
-                    late=query.get('late', None))]
+                    late=query.get('late', None),
+                    search=query.get('search', None))]
     return ('200 OK', {'status': 'ok', 'canaries': canaries})
 
 

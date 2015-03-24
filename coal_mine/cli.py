@@ -111,6 +111,9 @@ def main():
     late_group.add_argument('--late', action='store_true', default=None)
     late_group.add_argument('--no-late', dest='late',
                             action='store_false', default=None)
+    list_parser.add_argument('--search', action='store', default=None,
+                             help='Regular expression to match against name, '
+                             'slug, and identifier')
     list_parser.set_defaults(func=handle_list)
 
     trigger_parser = subparsers.add_parser('trigger', help='Trigger canary',
@@ -176,6 +179,8 @@ def handle_list(args):
         del args.paused
     if args.late is None:
         del args.late
+    if args.search is None:
+        del args.search
     call('list', args)
 
 

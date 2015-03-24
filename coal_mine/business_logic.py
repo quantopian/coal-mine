@@ -283,12 +283,13 @@ class BusinessLogic(object):
     def get(self, identifier):
         return self.store.get(identifier)
 
-    def list(self, *, verbose=False, paused=None, late=None):
+    def list(self, *, verbose=False, paused=None, late=None, search=None):
         """N.B.: Returns an iterator."""
         return self.store.list(
             verbose=verbose,
             paused=paused,
             late=late,
+            search=search,
         )
 
     def notify(self, canary):
