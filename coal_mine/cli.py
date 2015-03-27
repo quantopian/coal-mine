@@ -90,8 +90,7 @@ def main():
     update_parser_group = update_parser.add_mutually_exclusive_group()
     update_parser_group.add_argument('--slug', action='store')
     update_parser_group.add_argument('--id', action='store')
-    update_parser.add_argument('--periodicity', action='store', type=int,
-                               required=True)
+    update_parser.add_argument('--periodicity', action='store', type=int)
     update_parser.add_argument('--description', action='store')
     update_parser.add_argument('--email', action='append')
     update_parser.set_defaults(func=handle_update)
