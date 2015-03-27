@@ -206,7 +206,8 @@ def call(command, args, payload=None, action='print'):
         if args.auth_key:
             payload['auth_key'] = args.auth_key
     else:
-        payload = {key: str(getattr(args, key))
+        payload = {key: (getattr(args, key) if key == 'email'
+                         else str(getattr(args, key)))
                    for key in dir(args)
                    if key not in ('host', 'port', 'func') and
                    not key.startswith('_') and getattr(args, key) is not None}
