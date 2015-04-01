@@ -7,7 +7,7 @@ if sys.version_info[0] < 3:
 
 setup(
     name="coal_mine",
-    version='0.2.2',
+    version='0.2.3',
     author='Quantopian Inc.',
     author_email='opensource@quantopian.com',
     description="Coal Mine - Periodic task execution monitor",
