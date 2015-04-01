@@ -89,7 +89,7 @@ class BusinessLogic(object):
             raise TypeError('paused should be a bool')
         canary['paused'] = paused
 
-        canary['history'] = [(datetime.datetime.utcnow(), 'Snitch created')]
+        canary['history'] = [(datetime.datetime.utcnow(), 'Canary created')]
         canary['late'] = False
 
         if not canary['paused']:

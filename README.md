@@ -48,7 +48,7 @@ API Usage examples
             "history": [
                 [
                     "2015-03-19T01:08:44.885182",
-                    "Snitch created"
+                    "Canary created"
                 ]
             ],
             "late": false
@@ -82,7 +82,7 @@ API Usage examples
                 ],
                 [
                     "2015-03-19T01:08:44.885000",
-                    "Snitch created"
+                    "Canary created"
                 ]
             ],
             "emails": [],
