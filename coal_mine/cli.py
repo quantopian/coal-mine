@@ -92,7 +92,8 @@ def main():
     update_parser_group.add_argument('--id', action='store')
     update_parser.add_argument('--periodicity', action='store', type=int)
     update_parser.add_argument('--description', action='store')
-    update_parser.add_argument('--email', action='append')
+    update_parser.add_argument('--email', action='append', help='Specify "-" '
+                               'to clear existing email(s)')
     update_parser.set_defaults(func=handle_update)
 
     get_parser = subparsers.add_parser('get', help='Get canary',
@@ -209,7 +210,9 @@ def call(command, args, payload=None, action='print'):
                          else str(getattr(args, key)))
                    for key in dir(args)
                    if key not in ('host', 'port', 'func') and
-                   not key.startswith('_') and getattr(args, key) is not None}
+                   not key.startswith('_') and
+                   getattr(args, key) is not None and
+                   not (key == 'email' and getattr(args, key) == [])}
     response = requests.get(url, params=payload)
     if response.status_code != 200:
         sys.stderr.write('{} {}\n'.format(
