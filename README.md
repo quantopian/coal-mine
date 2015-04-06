@@ -235,7 +235,7 @@ Optional parameters:
 * name
 * periodicity
 * description
-* email
+* email - specify a single value of "-" to clear existing email addresses
 
 Response is the same as shown for get().
 

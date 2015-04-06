@@ -149,8 +149,6 @@ class BusinessLogic(object):
                 raise TypeError('description must be a string')
             updates['description'] = description
 
-        if emails is None:  # dummy caller specified None
-            emails = []
         if emails is not None and set(emails) != set(canary['emails']):
             if isinstance(emails, str):
                 raise TypeError('emails should be a list of zero or more '

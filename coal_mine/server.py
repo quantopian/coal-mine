@@ -284,11 +284,18 @@ def handle_delete(query, start_response):
 @int_parameters('periodicity')
 @valid_parameters('id', 'name', 'periodicity', 'description', 'email')
 def handle_update(query, start_response):
+    # Specifying '-' for email means to erase any existing email addresses.
+    emails = query.get('email', None)
+    if emails == []:
+        # No updated specified
+        emails = None
+    elif emails == ['-']:
+        emails = []
     canary = business_logic.update(query['id'],
                                    query.get('name', None),
                                    query.get('periodicity', None),
                                    query.get('description', None),
-                                   query.get('email', None))
+                                   emails)
     return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
 
