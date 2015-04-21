@@ -1,3 +1,4 @@
 logbook==0.9.0
 pymongo==2.8
 requests==2.6.0
+pypandoc==0.9.6

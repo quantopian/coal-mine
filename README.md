@@ -109,7 +109,7 @@ Use `cmcli` to send commands to the server from the same host or from
 any other host where Coal Mine is installed. You can either configure
 it:
 
-    cmcli configure --host coal-mine-server --port 8080 --auth_key [auth_key in coal-mine.ini]
+    cmcli configure --host coal-mine-server --port 8080 --auth-key [auth_key in coal-mine.ini]
 
 Or specify `--host`, `--port`, and/or `--auth-key` on the command line
 of each invocation.
@@ -188,7 +188,7 @@ Required parameters:
 
 * name
 * periodicity
-* auth_key (if authentication is enabled in the server)
+* auth-key (if authentication is enabled in the server)
 
 Optional parameters:
 
@@ -206,7 +206,7 @@ Endpoint: /coal-mine/v1/canary/delete
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth-key
 
 Response:
 
@@ -228,7 +228,7 @@ Required parameters:
 
 * id or slug (_not_ name, which should only be specified to update the
   name and slug)
-* auth_key
+* auth-key
 
 Optional parameters:
 
@@ -246,7 +246,7 @@ Endpoint: /coal-mine/v1/canary/get
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth-key
 
 Response:
 
@@ -268,7 +268,7 @@ Endpoint: /coal-mine/v1/canary/list
 
 Required parameters:
 
-* auth_key
+* auth-key
 
 Optional parameters:
 
@@ -303,7 +303,7 @@ notification email if canary was previously late.
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth-key
 
 Optional parameters:
 
@@ -330,7 +330,7 @@ canary. Adds history record about pause. Prunes history records.
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* aut-_key
 
 Optional parameters:
 
@@ -350,7 +350,7 @@ record about unpause. Prunes history records.
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth-key
 
 Optional parameters:
 
