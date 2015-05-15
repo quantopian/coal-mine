@@ -25,6 +25,7 @@ from random import choice
 import re
 import smtplib
 import signal
+from textwrap import dedent
 
 log = Logger('BusinessLogic')
 
@@ -325,8 +326,15 @@ class BusinessLogic(object):
         try:
             smtp = smtplib.SMTP()
             smtp.connect()
+            message_template = dedent('''
+                From: Coal Mine <{}>
+                To: {}
+                Subject: {}
+
+                {}
+            ''').strip()
             smtp.sendmail(self.email_sender, canary['emails'],
-                          'From: {}\nTo: {}\nSubject: {}\n\n{}'.format(
+                          message_template.format(
                               self.email_sender,
                               ', '.join(canary['emails']),
                               subject,
