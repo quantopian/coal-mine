@@ -374,7 +374,7 @@ class LogbookWSGIRequestHandler(WSGIRequestHandler):
 
     def handle(self):
         try:
-            return super(WSGIRequestHandler, self).handle()
+            return super(LogbookWSGIRequestHandler, self).handle()
         except socket.timeout as e:
             # Why WSGIRequestHandler doesn't handle this, I have no idea.
             self.log_error("Request timed out: %r", e)
