@@ -145,8 +145,14 @@ def application(environ, start_response):
 
     (status_code, data) = handlers[command](q, start_response)
 
-    data = [json.dumps(data, indent=4).encode('utf-8'),
-            '\n'.encode('utf-8')]
+    # If you give wsgiref a single, huge response blob to send, it sends the
+    # data to the socket in a single call to write(), which isn't guaranteed
+    # to send the whole block of data, and wsgiref doesn't check if all the
+    # data was sent and send the rest if it wasn't. This is arguably a bug in
+    # wsgiref, but fixing that will take time and effort, so we work around it
+    # here.
+    data = (s.encode('utf-8') for s in
+            (json.dumps(data, indent=4) + '\n').splitlines(True))
 
     start_response(status_code,
                    headers=[('Content-Type', 'text/json; charset=utf-8')])
