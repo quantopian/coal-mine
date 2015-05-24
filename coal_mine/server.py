@@ -27,6 +27,7 @@ import logbook
 from coal_mine.mongo_store import MongoStore
 import os
 import re
+import socket
 import sys
 from wsgiref.simple_server import make_server, WSGIRequestHandler
 
@@ -366,6 +367,19 @@ def jsonify_canary(canary):
 
 
 class LogbookWSGIRequestHandler(WSGIRequestHandler):
+    # Timeout incoming requests within 10 seconds to prevent somebody
+    # from DoS'ing the service by connecting to the port and simply
+    # sitting there without sending a request.
+    timeout = 10
+
+    def handle(self):
+        try:
+            super(WSGIRequestHandler, self).handle()
+        except socket.timeout as e:
+            # Why WSGIRequestHandler doesn't handle this, I have no idea.
+            self.log_error("Request timed out: %r", e)
+            raise
+
     def log_message(self, format, *args):
         msg = format % args
         msg = re.sub(r'\b(auth_key=)[^&;]+', r'\1<key>', msg)
