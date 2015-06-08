@@ -102,7 +102,7 @@ All API endpoints are fully documented below.
 
      0 0 * * * my-backup-script.sh && (curl http://coal-mine-server/fbkvlsby &>/dev/null)
 
-Or use use the CLI!
+Or use the CLI!
 -------------------
 
 Use `cmcli` to send commands to the server from the same host or from
@@ -142,7 +142,7 @@ Here's what can go in the config file:
   * hosts - the first argument to pymongo's MongoClient or
     MongoReplicaSetClient
   * database - database name. Coal Mine will create only one
-    collection in the database, called "canaries". 
+    collection in the database, called "canaries".
   * username - must be specified, but can be blank if no
     authentication is required
   * password - must be specified, but can be blank if no
@@ -287,7 +287,7 @@ Response:
 
 If "verbose" is true, then the JSON for each canary includes all the
 fields shown above, not just the name and identifier.
-                
+
 ### Trigger canary
 
 Endpoint: /coal-mine/v1/canary/trigger
