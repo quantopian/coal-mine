@@ -303,7 +303,6 @@ notification email if canary was previously late.
 Required parameters:
 
 * name, id, or slug
-* auth_key
 
 Optional parameters:
 
