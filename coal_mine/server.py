@@ -59,7 +59,7 @@ def main():
             handler = logbook.FileHandler(logfile)
         handler.push_application()
     except:
-        pass
+        logbook.StderrHandler().push_application()
 
     try:
         kwargs = dict(config.items('mongodb'))
