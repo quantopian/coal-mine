@@ -19,6 +19,7 @@ Coal Mine WSGI server
 """
 
 from coal_mine.business_logic import BusinessLogic
+from copy import copy
 from cgi import parse_qs
 from configparser import SafeConfigParser, NoSectionError, NoOptionError
 from functools import partial, wraps
@@ -350,6 +351,7 @@ def handle_unpause(business_logic, query):
 
 
 def jsonify_canary(canary):
+    canary = copy(canary)
     for key, value in [(k, v) for k, v in canary.items()]:
         if value is None:
             del canary[key]
