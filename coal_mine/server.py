@@ -21,7 +21,7 @@ Coal Mine WSGI server
 from coal_mine.business_logic import BusinessLogic
 from cgi import parse_qs
 from configparser import SafeConfigParser, NoSectionError, NoOptionError
-from functools import wraps
+from functools import partial, wraps
 import json
 import logbook
 from coal_mine.mongo_store import MongoStore
@@ -35,13 +35,9 @@ config_file = 'coal-mine.ini'
 url_prefix = '/coal-mine/v1/canary/'
 
 log = logbook.Logger('coal-mine')
-business_logic = None
-auth_key = None
 
 
 def main():
-    global business_logic, auth_key
-
     config = SafeConfigParser()
     dirs = ('.', '/etc', '/usr/local/etc')
     if not config.read([os.path.join(dir, config_file) for dir in dirs]):
@@ -97,13 +93,14 @@ def main():
     except:
         log.warning('Server authentication DISABLED')
 
-    httpd = make_server('', listen_port, application,
+    httpd = make_server('', listen_port,
+                        partial(application, business_logic, auth_key),
                         handler_class=LogbookWSGIRequestHandler)
     business_logic.schedule_next_deadline()
     httpd.serve_forever()
 
 
-def application(environ, start_response):
+def application(business_logic, auth_key, environ, start_response):
     handlers = {
         'create': handle_create,
         'delete': handle_delete,
@@ -143,7 +140,7 @@ def application(environ, start_response):
         start_response('401 Unauthorized', headers=[])
         return []
 
-    (status_code, data) = handlers[command](q, start_response)
+    (status_code, data) = handlers[command](business_logic, q)
 
     # If you give wsgiref a single, huge response blob to send, it sends the
     # data to the socket in a single call to write(), which isn't guaranteed
@@ -162,46 +159,40 @@ def application(environ, start_response):
 def required_parameters(*args):
     def decorator(f):
         @wraps(f)
-        def wrapper(query, start_response):
+        def wrapper(business_logic, query):
             for arg in args:
                 if arg not in query:
                     raise Exception('Missing argument "{}"'.format(arg))
-            return f(query, start_response)
+            return f(business_logic, query)
         return wrapper
     return decorator
 
 
-def find_identifier(name_ok=True):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(query, start_response):
-            name = slug = identifier = None
-            if 'id' in query:
-                identifier = query.pop('id')[-1]
-            elif 'slug' in query:
-                slug = query.pop('slug')[-1]
-            elif name_ok and 'name' in query:
-                name = query.pop('name')[-1]
-            if not (name or slug or identifier):
-                if name_ok:
-                    raise Exception('Must specify id, slug, or name')
-                else:
-                    raise Exception('Muset specify id or slug')
-            query['id'] = business_logic.find_identifier(
-                name, slug, identifier)
-            return f(query, start_response)
-        return wrapper
-    return decorator
+def find_identifier(business_logic, query, name_ok=True):
+    name = slug = identifier = None
+    if 'id' in query:
+        identifier = query.pop('id')[-1]
+    elif 'slug' in query:
+        slug = query.pop('slug')[-1]
+    elif name_ok and 'name' in query:
+        name = query.pop('name')[-1]
+    if not (name or slug or identifier):
+        if name_ok:
+            raise Exception('Must specify id, slug, or name')
+        else:
+            raise Exception('Muset specify id or slug')
+    query['id'] = business_logic.find_identifier(
+        name, slug, identifier)
 
 
 def string_parameters(*args):
     def decorator(f):
         @wraps(f)
-        def wrapper(query, start_response):
+        def wrapper(business_logic, query):
             for arg in args:
                 if arg in query:
                     query[arg] = query[arg][-1]
-            return f(query, start_response)
+            return f(business_logic, query)
         return wrapper
     return decorator
 
@@ -209,11 +200,11 @@ def string_parameters(*args):
 def int_parameters(*args):
     def decorator(f):
         @wraps(f)
-        def wrapper(query, start_response):
+        def wrapper(business_logic, query):
             for arg in args:
                 if arg in query:
                     query[arg] = int(query[arg][-1])
-            return f(query, start_response)
+            return f(business_logic, query)
         return wrapper
     return decorator
 
@@ -221,7 +212,7 @@ def int_parameters(*args):
 def boolean_parameters(*args):
     def decorator(f):
         @wraps(f)
-        def wrapper(query, start_response):
+        def wrapper(business_logic, query):
             for arg in args:
                 if arg not in query:
                     continue
@@ -234,7 +225,7 @@ def boolean_parameters(*args):
                     raise Exception(
                         'Bad boolean value "{}" for parameter "{}"'.format(
                             val, arg))
-            return f(query, start_response)
+            return f(business_logic, query)
         return wrapper
     return decorator
 
@@ -242,20 +233,20 @@ def boolean_parameters(*args):
 def valid_parameters(*args):
     def decorator(f):
         @wraps(f)
-        def wrapper(query, start_response):
+        def wrapper(business_logic, query):
             for arg in query:
                 if arg not in args:
                     raise Exception('Unexpected argument "{}"'.format(arg))
-            return f(query, start_response)
+            return f(business_logic, query)
         return wrapper
     return decorator
 
 
 def handle_exceptions(f):
     @wraps(f)
-    def wrapper(query, start_response):
+    def wrapper(business_logic, query):
         try:
-            return f(query, start_response)
+            return f(business_logic, query)
         except Exception as e:
             log.exception('Exception in {}'.format(f))
             return ('400 Bad Request', {'status': 'error', 'error': repr(e)})
@@ -268,7 +259,7 @@ def handle_exceptions(f):
 @int_parameters('periodicity')
 @boolean_parameters('paused')
 @valid_parameters('name', 'periodicity', 'description', 'email', 'paused')
-def handle_create(query, start_response):
+def handle_create(business_logic, query):
     canary = business_logic.create(query['name'],
                                    query['periodicity'],
                                    query.get('description', ''),
@@ -278,19 +269,19 @@ def handle_create(query, start_response):
 
 
 @handle_exceptions
-@find_identifier()
-@valid_parameters('id')
-def handle_delete(query, start_response):
+@valid_parameters('id', 'name', 'slug')
+def handle_delete(business_logic, query):
+    find_identifier(business_logic, query)
     business_logic.delete(query['id'])
     return ('200 OK', {'status': 'ok'})
 
 
 @handle_exceptions
-@find_identifier(name_ok=False)
 @string_parameters('name', 'description')
 @int_parameters('periodicity')
-@valid_parameters('id', 'name', 'periodicity', 'description', 'email')
-def handle_update(query, start_response):
+@valid_parameters('id', 'name', 'slug', 'periodicity', 'description', 'email')
+def handle_update(business_logic, query):
+    find_identifier(business_logic, query, name_ok=False)
     # Specifying '-' for email means to erase any existing email addresses.
     emails = query.get('email', None)
     if emails == []:
@@ -307,9 +298,9 @@ def handle_update(query, start_response):
 
 
 @handle_exceptions
-@find_identifier()
-@valid_parameters('id')
-def handle_get(query, start_response):
+@valid_parameters('id', 'name', 'slug')
+def handle_get(business_logic, query):
+    find_identifier(business_logic, query)
     canary = business_logic.get(query['id'])
 
     return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
@@ -319,7 +310,7 @@ def handle_get(query, start_response):
 @boolean_parameters('verbose', 'paused', 'late')
 @string_parameters('search')
 @valid_parameters('verbose', 'paused', 'late', 'search')
-def handle_list(query, start_response):
+def handle_list(business_logic, query):
     canaries = [jsonify_canary(canary)
                 for canary in business_logic.list(
                     verbose=query.get('verbose', False),
@@ -330,10 +321,10 @@ def handle_list(query, start_response):
 
 
 @handle_exceptions
-@find_identifier()
 @string_parameters('comment', 'm')
-@valid_parameters('id', 'comment', 'm')
-def handle_trigger(query, start_response):
+@valid_parameters('id', 'name', 'slug', 'comment', 'm')
+def handle_trigger(business_logic, query):
+    find_identifier(business_logic, query)
     comment = query.get('comment', query.get('m', ''))
     (recovered, unpaused) = business_logic.trigger(query['id'], comment)
     return ('200 OK',
@@ -341,19 +332,19 @@ def handle_trigger(query, start_response):
 
 
 @handle_exceptions
-@find_identifier()
 @string_parameters('comment')
-@valid_parameters('id', 'comment')
-def handle_pause(query, start_response):
+@valid_parameters('id', 'name', 'slug', 'comment')
+def handle_pause(business_logic, query):
+    find_identifier(business_logic, query)
     canary = business_logic.pause(query['id'], query.get('comment', ''))
     return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
 
 @handle_exceptions
-@find_identifier()
 @string_parameters('comment')
-@valid_parameters('id', 'comment')
-def handle_unpause(query, start_response):
+@valid_parameters('id', 'name', 'slug', 'comment')
+def handle_unpause(business_logic, query):
+    find_identifier(business_logic, query)
     canary = business_logic.unpause(query['id'], query.get('comment', ''))
     return ('200 OK', {'status': 'ok', 'canary': jsonify_canary(canary)})
 
