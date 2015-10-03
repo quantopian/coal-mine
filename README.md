@@ -1,32 +1,190 @@
 Coal Mine - Periodic task execution monitor
-===============================================
+===========================================
 
-(Releases are available [in PyPI](https://pypi.python.org/pypi/coal_mine).)
+Home page is [on Github](https://github.com/quantopian/coal-mine/).
+Releases are available [in PyPI](https://pypi.python.org/pypi/coal_mine).
+
+What is Coal Mine?
+------------------
+
+Periodic, recurring tasks are ubiquitous in computing, and so one of
+the most common problems in systems administration and operations is
+ensuring that such tasks execute as expected. Designing the tasks to
+report errors is necessary but not sufficient; what if a task isn't
+being run at all (crashed daemon, misconfigured crontab) or is running
+much more slowly than it should be?
+
+Coal Mine provides a simple yet powerful tool for solving this
+problem. In a nutshell:
+
+* Each recurring task has a Coal Mine "canary" associated with it.
+* The task triggers the canary when it is finished executing.
+* The canary knows how often the task is supposed to execute.
+* Coal Mine alerts by email when a canary is late and alerts again
+  when the late canary resumes.
+* Coal Mine keeps a (partial) history of when each canary was
+  triggered.
+
 
 Track tasks that are supposed to execute periodically using "canaries"
 that the tasks trigger when they execute. Alert by email when a canary
 is late. Alert again when a late canary resumes. Keep a partial
 history of canary trigger times.
 
-Uses MongoDB for storage. Pull requests to add additional storage
-engines are welcome.
-
 The server notifies immediately when the deadline for an unpaused
 canary passes. Similarly, the server notifies immediately when a
 previously late canary is triggered.
 
-All timestamps are stored and displayed in UTC.
-
 Prerequisites
 -------------
 
-Python 3.
+* Python 3
+* MongoDB for storage (pull requests to add additional storage engines
+  are welcome)
+* requirements listed in requirements.txt
+* for development, requirements listed in requirements_dev.txt
 
-Requirements listed in requirements.txt.
+Concepts
+--------
 
-For development, requirements listed in requirements_dev.txt.
+Coal Mine provides two interfaces, a REST API and a command-line
+interface (CLI). Since triggering a canary requires nothing more than
+hitting its endpoint with a GET or POST query, it's best to do
+triggering through the API, so that the CLI doesn't need to be
+installed on every system running monitoring tasks. For administrative
+operations, on the other hand, the CLI is usually easier.
 
-API Usage examples
+All timestamps stored and displayed by Coal Mine are in UTC.
+
+### Operations
+
+The operations that can be performed on canaries through the CLI or
+API are:
+
+* create
+* delete
+* reconfigure
+* get information about
+* pause -- stop monitoring and alerting
+* unpause
+* trigger
+* list -- all canaries or the ones matching search terms
+
+Coal Mine security is rudimentary. If the server is configured with an
+optional authentication key, then the key must be specified with all
+operations except trigger.
+
+### Data
+
+These canary attributes are specified when it is created or updated:
+
+* name
+* description
+* periodicity -- the maximum number of seconds that can elapse before
+  a canary is late
+* zero or more notification email address(es)
+
+These are created and maintained by Coal Mine:
+
+* slug -- the canary's name, lower-cased, with spaces and underscores
+  converted to hyphens and other non-alphanumeric characters removed
+* a random identifier consisting of eight lower-case letters,
+  generated when the canary is created and guaranteed to be unique
+  against other canaries in the database
+* late state (boolean)
+* paused state (boolean)
+* deadline by which the canary should be triggered to avoid being late
+* a history of triggers, pruned when >1000 or (>100 and older than one
+  week)
+
+Installation and configuration
+------------------------------
+
+### Server
+
+1. `pip install coal-mine`
+2. Create `/etc/coal-mine.ini` (see [below](#ini-file))
+3. Run `coal-mine &`
+4. Put that in `/etc/rc.local` or something as needed to ensure that
+   it is restarted on reboot.
+
+#### Server configuration file  <a name="ini-file"></a>
+
+The server configuration file, `coal-mine.ini`, can go in the current
+directory where the server is launched, `/etc`, or
+`/usr/local/etc`. (If you need to put it somewhere else, modify the
+list of directories near the top of `main()` in `server.py`.)
+
+The file is (obviously) in INI format. Here are the sections and
+settings that it can or must contain:
+
+* \[logging\] -- optional
+  * file -- log file path; otherwise logging goes to stderr
+  * rotate -- if true, then rotate the log file when it gets too large
+  * max\_size -- max log file size before rotating (default: 1048576)
+  * backup\_count -- number of rotated log files to keep (default: 5)
+* \[mongodb\] -- required
+  * hosts -- the first argument to pymongo's MongoClient or
+    MongoReplicaSetClient
+  * database -- database name. Coal Mine will create only one
+    collection in the database, called "canaries".
+  * username -- must be specified, but can be blank if no
+    authentication is required
+  * password -- must be specified, but can be blank if no
+    authentication is required
+  * replicaSet -- must be specified if using a replicaset
+  * other arguments will be passed through to MongoClient or
+    MongoReplicaSetClient
+* \[email\] -- required
+  * sender -- email address to put in the From line of notification
+    emails
+* \[wsgi\] -- optional
+  * port -- port number the server should listen on (default: 80)
+  * auth\_key -- if non-empty, then the specified key must be
+    specified as a parameter of the same name with all API requests
+    except "trigger".
+
+### CLI
+
+1. `pip install coal-mine`
+2. `cmcli configure [--host server-host-name] [--port server-port]
+        [--auth-key key | --no-auth-key]`
+
+The CLI stores its configuration in `~/.coal-mine.ini`. Note that the
+authentication key is stored in plaintext. Any configuration
+parameters the CLI needs that aren't stored in the INI file must be
+specified explicitly on the command line when using the CLI.
+
+Using Coal Mine
+---------------
+
+### CLI
+
+The Coal Mine CLI, `cmcli`, provides convenient access to the full
+range of Coal Mine's functionality.
+
+To make the CLI easier to use, you can configure it as shown above,
+but you also have the option of specifying the server connection
+information every time you use it. Also, connnection information
+specified on the command line overrides the stored configuration.
+
+Here are some example commands:
+
+    cmcli create --help
+    
+    cmcli create --name 'My Second Canary' --periodicity $((60*60*25))  # $((60*60*25)) is 25 hours
+    cmcli trigger --id aseprogj
+    cmcli delete --slug 'my-second-canary'
+
+Run `cmcli --help` for more information.
+
+For commands that operate on individual canaries, you can identify the
+canary with `--id`, `--name`, or `--slug`. Note that for the `update`
+command, if you want to update the name of a canary you will need to
+identify it `--id` or `--slug`, because in that case the `--name`
+argument is used to specify the new name.
+
+API usage examples
 ------------------
 
 ### Example commands
@@ -102,65 +260,8 @@ All API endpoints are fully documented below.
 
      0 0 * * * my-backup-script.sh && (curl http://coal-mine-server/fbkvlsby &>/dev/null)
 
-Or use the CLI!
--------------------
-
-Use `cmcli` to send commands to the server from the same host or from
-any other host where Coal Mine is installed. You can either configure
-it:
-
-    cmcli configure --host coal-mine-server --port 8080 --auth_key [auth_key in coal-mine.ini]
-
-Or specify `--host`, `--port`, and/or `--auth-key` on the command line
-of each invocation.
-
-Some example commands:
-
-    cmcli create --help
-    # $((60*60*25)) is 25 hours
-    cmcli create --name 'My Second Canary' --periodicity $((60*60*25))
-    cmcli delete --slug 'my-second-canary'
-
-Run `cmcli --help` for more information.
-
-Server configuration
---------------------
-
-Create <tt>coal-mine.ini</tt> in the current directory, or
-<tt>/etc</tt>, or <tt>/usr/local/etc</tt>, or modify the list of
-directories hear the top of <tt>main()</tt> in <tt>server.py</tt> if
-you want to put it somewhere else.
-
-Here's what can go in the config file:
-
-* [logging] - optional
-  * file - specify the log file; otherwise logging goes to stderr
-  * rotate - if true, then rotate the log file when it gets too large
-  * max\_size - max log file size before rotating (default: 1048576)
-  * backup\_count - number of rotated log files to keep (default: 5)
-* [mongodb] - required
-  * hosts - the first argument to pymongo's MongoClient or
-    MongoReplicaSetClient
-  * database - database name. Coal Mine will create only one
-    collection in the database, called "canaries".
-  * username - must be specified, but can be blank if no
-    authentication is required
-  * password - must be specified, but can be blank if no
-    authentication is required
-  * replicaSet - must be specified if using a replicaset
-  * other arguments will be passed through to MongoClient or
-    MongoReplicaSetClient
-* [email] - required
-  * sender - email address to put in the From line of notification
-    emails
-* [wsgi] - optional
-  * port - port number the server should listen on (default: 80)
-  * auth\_key - if non-empty, then the specified key must be specified
-    as a parameter of the same name with all API requests except
-    "trigger".
-
-API
----
+API reference
+-------------
 
 All API endpoints are submitted as http(s) GET requests. Results are
 returned in JSON.
@@ -172,11 +273,11 @@ Boolean fields in API should be specified as "true", "yes", or "1" for
 true, or "false", "no", "0", or empty string for false. Boolean fields
 in responses are standard JSON, i.e., "true" or "false".
 
-Timestamps returned by API are always UTC.
+Timestamps returned by the API are always UTC.
 
 ### Create canary
 
-Endpoint: /coal-mine/v1/canary/create
+Endpoint: `/coal-mine/v1/canary/create`
 
 Side effects:
 
@@ -188,7 +289,7 @@ Required parameters:
 
 * name
 * periodicity
-* auth_key (if authentication is enabled in the server)
+* auth\_key (if authentication is enabled in the server)
 
 Optional parameters:
 
@@ -201,12 +302,12 @@ Response is the same as shown for get().
 
 ### Delete canary
 
-Endpoint: /coal-mine/v1/canary/delete
+Endpoint: `/coal-mine/v1/canary/delete`
 
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth\_key
 
 Response:
 
@@ -214,7 +315,7 @@ Response:
 
 ### Update canary
 
-Endpoint: /coal-mine/v1/canary/update
+Endpoint: `/coal-mine/v1/canary/update`
 
 Side effects:
 
@@ -228,7 +329,7 @@ Required parameters:
 
 * id or slug (_not_ name, which should only be specified to update the
   name and slug)
-* auth_key
+* auth\_key
 
 Optional parameters:
 
@@ -241,12 +342,12 @@ Response is the same as shown for get().
 
 ### Get canary
 
-Endpoint: /coal-mine/v1/canary/get
+Endpoint: `/coal-mine/v1/canary/get`
 
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth\_key
 
 Response:
 
@@ -264,11 +365,11 @@ Response:
 
 ### List canaries
 
-Endpoint: /coal-mine/v1/canary/list
+Endpoint: `/coal-mine/v1/canary/list`
 
 Required parameters:
 
-* auth_key
+* auth\_key
 
 Optional parameters:
 
@@ -290,9 +391,15 @@ fields shown above, not just the name and identifier.
 
 ### Trigger canary
 
-Endpoint: /coal-mine/v1/canary/trigger
+Endpoint: `/coal-mine/v1/canary/trigger`
 
 Also: /_identifier_, in which case the "id" parameter is implied
+
+Note that the server will accept POST requests for triggers as well as
+GET requests, so that you can use triggers as webhooks in applications
+that expect to be able to POST. The content of the POST is ignored;
+even when using POST, the API parameters must still be specified as a
+query string.
 
 Side effects:
 
@@ -319,7 +426,7 @@ Response:
 
 ### Pause canary
 
-Endpoint: /coal-mine/v1/canary/pause
+Endpoint: `/coal-mine/v1/canary/pause`
 
 Side effects:
 
@@ -329,7 +436,7 @@ canary. Adds history record about pause. Prunes history records.
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth\_key
 
 Optional parameters:
 
@@ -339,7 +446,7 @@ Response is the same as shown for get().
 
 ### Unpause canary
 
-Endpoint /coal-mine/v1/canary/unpause
+Endpoint `/coal-mine/v1/canary/unpause`
 
 Side effects:
 
@@ -349,7 +456,7 @@ record about unpause. Prunes history records.
 Required parameters:
 
 * name, id, or slug
-* auth_key
+* auth\_key
 
 Optional parameters:
 
@@ -371,6 +478,39 @@ if the trigger fails. Something like:
 I also recommend using a log-monitoring service such as Papertrail to
 monitor and alert about errors in the Coal Mine log.
 
+Contacts
+--------
+
+[Github](https://github.com/quantopian/coal-mine)
+
+[Email](mailto:opensource@quantopian.com)
+
+[PyPI](https://pypi.python.org/pypi/coal_mine)
+
+Contributors
+------------
+
+Coal Mine was created by Jonathan Kamens, with design help from the
+awesome folks at [Quantopian](https://www.quantopian.com/). Thanks,
+also, to Quantopian for supporting the development and open-sourcing
+of this project.
+
+Development philosophy
+----------------------
+
+Use Python.
+
+Do one, simple thing well. There are several similar projects out
+there that do more than this project attempts to do.
+
+Make the implementation as simple and straightforward as possible. The
+code should be small. What everything does should be obvious from
+reading it.
+
+Minimize external dependencies. If something is simple and
+straightforward to do ourselves, don't use a third-party package just
+for the sake of using a third-party package.
+
 Alternatives
 ------------
 
@@ -391,61 +531,6 @@ there, for several reasons:
   guarantee.
 * We like Python.
 * We like OSS.
-
-Contributors
-------------
-
-Coal Mine was created by Jonathan Kamens, with design help from the
-awesome folks at [Quantopian](https://www.quantopian.com/). Thanks,
-also, to Quantopian for supporting the development and open-sourcing
-of this project.
-
-Contacts
---------
-
-[Github](https://github.com/quantopian/coal-mine)
-
-[Email](mailto:opensource@quantopian.com)
-
-[PyPI](https://pypi.python.org/pypi/coal_mine)
-
-Developer notes
------------------
-
-### Development philosophy
-
-Use Python.
-
-Do one, simple thing well. There are several similar projects out
-there that do more than this project attempts to do.
-
-Make the implementation as simple and straightforward as possible. The
-code should be small. What everything does should be obvious from
-reading it.
-
-Minimize external dependencies. If something is simple and
-straightforward to do ourselves, don't use a third-party package just
-for the sake of using a third-party package.
-
-### Data model
-
-For each canary, we store:
-
-* name
-* description
-* slug - the name, lower-cased, with spaces and underscores converted
-  to hyphens and other non-alphanumeric characters removed
-* random identifier, guaranteed unique
-* periodicity - maximum number of seconds that can elapse before a
-  canary is late.
-* notification email address(es)
-* late state (boolean)
-* paused state (boolean)
-* deadline for next update
-* history of triggers, pruned when (>1000 or (>100 and older than one
-  week)
-
-Timestamps in database are UTC.
 
 ### To Do
 
