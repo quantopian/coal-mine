@@ -38,7 +38,7 @@ url_prefix = '/coal-mine/v1/canary/'
 log = logbook.Logger('coal-mine')
 
 
-def main():
+def main():  # pragma: no cover
     config = SafeConfigParser()
     dirs = ('.', '/etc', '/usr/local/etc')
     if not config.read([os.path.join(dir, config_file) for dir in dirs]):
@@ -287,7 +287,7 @@ def handle_update(business_logic, query):
     emails = query.get('email', None)
     if emails == []:
         # No update specified
-        emails = None
+        emails = None  # pragma: no cover  # it's a pain to simulate this
     elif emails == ['-']:
         emails = []
     canary = business_logic.update(query['id'],
@@ -365,7 +365,7 @@ def jsonify_canary(canary):
     return canary
 
 
-class LogbookWSGIRequestHandler(WSGIRequestHandler):
+class LogbookWSGIRequestHandler(WSGIRequestHandler):  # pragma: no cover
     # Timeout incoming requests within 10 seconds to prevent somebody
     # from DoS'ing the service by connecting to the port and simply
     # sitting there without sending a request.
@@ -385,5 +385,5 @@ class LogbookWSGIRequestHandler(WSGIRequestHandler):
         log.info("%s - - %s" % (self.address_string(), msg))
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     main()
