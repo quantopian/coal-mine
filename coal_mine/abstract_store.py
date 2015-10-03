@@ -21,10 +21,6 @@ Subclass for a specific storage engine.
 from abc import ABCMeta, abstractmethod
 
 
-class AlreadyExistsError(Exception):
-    pass
-
-
 class AbstractStore(object, metaclass=ABCMeta):
     @abstractmethod
     def __init__(self, *args, **kwargs):
