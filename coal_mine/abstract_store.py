@@ -29,7 +29,6 @@ class AbstractStore(object, metaclass=ABCMeta):
 
     @abstractmethod
     def create(self, canary):
-        """Should return string identifier of created canary."""
         raise NotImplementedError('create')
 
     @abstractmethod
