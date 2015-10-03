@@ -181,7 +181,7 @@ def find_identifier(business_logic, query, name_ok=True):
         if name_ok:
             raise Exception('Must specify id, slug, or name')
         else:
-            raise Exception('Muset specify id or slug')
+            raise Exception('Must specify id or slug')
     query['id'] = business_logic.find_identifier(
         name, slug, identifier)
 
@@ -286,7 +286,7 @@ def handle_update(business_logic, query):
     # Specifying '-' for email means to erase any existing email addresses.
     emails = query.get('email', None)
     if emails == []:
-        # No updated specified
+        # No update specified
         emails = None
     elif emails == ['-']:
         emails = []
