@@ -17,6 +17,7 @@ Business logic for Coal Mine
 """
 
 from copy import copy
+from .crontab_schedule import CronTabSchedule, CronTabScheduleException
 import datetime
 from logbook import Logger
 import math
@@ -67,10 +68,7 @@ class BusinessLogic(object):
             pass
         canary['slug'] = slug
 
-        if not isinstance(periodicity, Number):
-            raise TypeError('periodicity must be a number')
-        if periodicity <= 0:
-            raise TypeError('periodicity must be positive')
+        self.validate_periodicity(periodicity)
         canary['periodicity'] = periodicity
 
         if not description:
@@ -95,7 +93,8 @@ class BusinessLogic(object):
 
         if not canary['paused']:
             canary['deadline'] = canary['history'][0][0] + \
-                datetime.timedelta(seconds=periodicity)
+                self.calculate_periodicity_delta(
+                    periodicity, canary['history'][0][0])
 
         self.store.create(canary)
 
@@ -104,6 +103,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        self.periodicity_schedule(canary)
         return canary
 
     def update(self, identifier, name=None, periodicity=None,
@@ -131,15 +131,13 @@ class BusinessLogic(object):
             updates['name'] = name
 
         if periodicity is not None and periodicity != canary['periodicity']:
-            if not isinstance(periodicity, Number):
-                raise TypeError('periodicity must be a number')
-            if periodicity <= 0:
-                raise TypeError('periodicity must be positive')
+            self.validate_periodicity(periodicity)
             updates['periodicity'] = periodicity
 
             if not canary['paused']:
                 updates['deadline'] = canary['history'][0][0] + \
-                    datetime.timedelta(seconds=periodicity)
+                    self.calculate_periodicity_delta(
+                        periodicity, canary['history'][0][0])
                 is_late = updates['deadline'] < datetime.datetime.utcnow()
                 if is_late != canary['late']:
                     updates['late'] = is_late
@@ -170,6 +168,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        self.periodicity_schedule(canary)
         return canary
 
     def trigger(self, identifier, comment=None):
@@ -188,7 +187,8 @@ class BusinessLogic(object):
         updates['history'] = history
 
         updates['deadline'] = history[0][0] + \
-            datetime.timedelta(seconds=canary['periodicity'])
+            self.calculate_periodicity_delta(
+                canary['periodicity'], history[0][0])
         if canary['late']:
             updates['late'] = False
         if canary['paused']:
@@ -238,6 +238,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        self.periodicity_schedule(canary)
         return canary
 
     def unpause(self, identifier, comment=None):
@@ -259,7 +260,8 @@ class BusinessLogic(object):
         updates['history'] = history
 
         updates['deadline'] = history[0][0] + \
-            datetime.timedelta(seconds=canary['periodicity'])
+            self.calculate_periodicity_delta(
+                canary['periodicity'], history[0][0])
 
         self.store.update(identifier, updates)
         canary.update(updates)
@@ -269,6 +271,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        self.periodicity_schedule(canary)
         return canary
 
     def delete(self, identifier):
@@ -280,7 +283,9 @@ class BusinessLogic(object):
         self.schedule_next_deadline()
 
     def get(self, identifier):
-        return self.store.get(identifier)
+        canary = self.store.get(identifier)
+        self.periodicity_schedule(canary)
+        return canary
 
     def list(self, *, verbose=False, paused=None, late=None, search=None):
         """N.B.: Returns an iterator."""
@@ -418,6 +423,60 @@ class BusinessLogic(object):
         while len(history) > 1000 or (len(history) > 100 and
                                       history[-1][0] < one_week_ago):
             history.pop()
+
+    def calculate_periodicity_delta(self, periodicity, whence=None):
+        if whence is None:
+            whence = datetime.datetime.utcnow()
+        if isinstance(periodicity, Number):
+            if periodicity > 0:
+                return datetime.timedelta(seconds=periodicity)
+            raise TypeError('numeric periodicities must be positive')
+        if periodicity.find('\n') > -1:
+            raise TypeError('malformed periodicity: no newlines allowed')
+        try:
+            s = CronTabSchedule(periodicity, delimiter=';')
+        except:
+            raise TypeError('malformed periodicity: must be positive number '
+                            'or semicolon-delimited crontab schedule; see '
+                            'documentation for more information')
+        for i in range(len(s)):
+            number_string = s.key_of(i)
+            try:
+                value = float(number_string)
+                if value <= 0:
+                    raise Exception()
+            except:
+                raise TypeError('malformed periodicity; each crontab schedule '
+                                '"command" must be a positive number')
+        try:
+            dt, i = s.next_active(now=whence, multi=False)
+        except CronTabScheduleException:
+            raise TypeError('malformed periodicity: overlapping schedule '
+                            'entries are not allowed')
+        td = datetime.timedelta(seconds=float(s.key_of(i)))
+        if dt > whence:
+            td += dt - whence
+        return td
+
+    # Syntactic sugar.
+    def validate_periodicity(self, periodicity):
+        self.calculate_periodicity_delta(periodicity)
+
+    def periodicity_schedule(self, canary):
+        if isinstance(canary['periodicity'], Number):
+            return
+        schedule = CronTabSchedule(canary['periodicity'], delimiter=';')
+        start = datetime.datetime.utcnow()
+        ranges1 = [r for r in schedule.schedule_iter(start=start, multi=False)]
+        ranges2 = [r for r in schedule.schedule_iter(
+            start=start,
+            end=start + datetime.timedelta(days=7),
+            multi=False)]
+        ranges = ranges1 if len(ranges1) > len(ranges2) else ranges2
+        ranges = [(r[0], r[1],
+                   float(r[2]) if r[2] is not None else 'Inactive')
+                  for r in ranges]
+        canary['periodicity_schedule'] = ranges
 
 
 def canary_log_string(canary):

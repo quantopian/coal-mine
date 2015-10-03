@@ -15,6 +15,7 @@
 from coal_mine.business_logic import \
     AlreadyExistsError, AlreadyPausedError, AlreadyUnpausedError, BusinessLogic
 from coal_mine.memory_store import MemoryStore
+from datetime import datetime, timedelta
 import smtplib
 import time
 from unittest import TestCase
@@ -188,3 +189,52 @@ class BusinessLogicTests(TestCase):
         # active canaries.
         self.store.canaries.clear()
         self.logic.schedule_next_deadline()
+
+    def test_periodicity_numeric(self):
+        created = self.logic.create(name='test_periodicity_numeric',
+                                    periodicity=1200)
+        delta = (created['deadline'] - datetime.utcnow()).total_seconds()
+        self.assertAlmostEqual(delta / 10, 120, places=0)
+
+    def test_periodicity_schedule_inactive(self):
+        now = datetime.utcnow()
+        midnight_tomorrow = (now + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_schedule = '* * * * {} 1200'.format(
+            midnight_tomorrow.isoweekday())
+        created = self.logic.create(name='test_periodicity_schedule_inactive',
+                                    periodicity=tomorrow_schedule)
+        delta = (created['deadline'] - midnight_tomorrow).total_seconds()
+        self.assertAlmostEqual(delta / 10, 120, places=0)
+
+    def test_periodicity_schedule_active(self):
+        now = datetime.utcnow()
+        created = self.logic.create(name='test_periodicity_schedule_active',
+                                    periodicity='* * * * * 1200')
+        delta = (created['deadline'] - now).total_seconds()
+        self.assertAlmostEqual(delta / 10, 120, places=0)
+
+    def test_periodicity_invalid(self):
+        with self.assertRaises(TypeError):
+            self.logic.create(name='test_periodicity_invalid',
+                              periodicity='* * * * 1200')
+
+    def test_periodicity_invalid_newline(self):
+        with self.assertRaises(TypeError):
+            self.logic.create(name='test_periodicity_invalid_newline',
+                              periodicity='* * * * sat 1200\n* * * * sun 400')
+
+    def test_periodicity_invalid_command(self):
+        with self.assertRaises(TypeError):
+            self.logic.create(name='test_periodicity_invalid_command',
+                              periodicity='* * * * * froodle')
+
+    def test_periodicity_invalid_negative(self):
+        with self.assertRaises(TypeError):
+            self.logic.create(name='test_periodicity_invalid_negative',
+                              periodicity='* * * * * -1')
+
+    def test_periodicity_invalid_overlapping(self):
+        with self.assertRaises(TypeError):
+            self.logic.create(name='test_periodicity_invalid_overlapping',
+                              periodicity='* * * * * 30; * * * * * 60')

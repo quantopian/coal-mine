@@ -198,16 +198,17 @@ def string_parameters(*args):
     return decorator
 
 
-def int_parameters(*args):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(business_logic, query):
-            for arg in args:
-                if arg in query:
-                    query[arg] = int(query[arg][-1])
-            return f(business_logic, query)
-        return wrapper
-    return decorator
+def periodicity(f):
+    @wraps(f)
+    def wrapper(business_logic, query):
+        if 'periodicity' in query:
+            periodicity = query['periodicity'][-1]
+            if re.match(r'[\d.]+$', periodicity):
+                query['periodicity'] = float(periodicity)
+            else:
+                query['periodicity'] = periodicity
+        return f(business_logic, query)
+    return wrapper
 
 
 def boolean_parameters(*args):
@@ -257,7 +258,7 @@ def handle_exceptions(f):
 @handle_exceptions
 @required_parameters('name', 'periodicity')
 @string_parameters('name', 'description')
-@int_parameters('periodicity')
+@periodicity
 @boolean_parameters('paused')
 @valid_parameters('name', 'periodicity', 'description', 'email', 'paused')
 def handle_create(business_logic, query):
@@ -279,7 +280,7 @@ def handle_delete(business_logic, query):
 
 @handle_exceptions
 @string_parameters('name', 'description')
-@int_parameters('periodicity')
+@periodicity
 @valid_parameters('id', 'name', 'slug', 'periodicity', 'description', 'email')
 def handle_update(business_logic, query):
     find_identifier(business_logic, query, name_ok=False)
@@ -362,6 +363,12 @@ def jsonify_canary(canary):
     if 'history' in canary:
         canary['history'] = tuple((d.isoformat(), c)
                                   for d, c in canary['history'])
+
+    if 'periodicity_schedule' in canary:
+        canary['periodicity_schedule'] = \
+            tuple((d1.isoformat(), d2.isoformat(), p)
+                  for d1, d2, p in canary['periodicity_schedule'])
+
     return canary
 
 

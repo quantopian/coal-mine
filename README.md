@@ -81,7 +81,9 @@ These canary attributes are specified when it is created or updated:
 * name
 * description
 * periodicity -- the maximum number of seconds that can elapse before
-  a canary is late
+  a canary is late, _or_ a schedule in the format described
+  [below](#periodicity), which allows the periodicity of the canary to
+  vary over time
 * zero or more notification email address(es)
 
 These are created and maintained by Coal Mine:
@@ -96,6 +98,71 @@ These are created and maintained by Coal Mine:
 * deadline by which the canary should be triggered to avoid being late
 * a history of triggers, pruned when >1000 or (>100 and older than one
   week)
+
+#### Scheduled periodicity  <a name="periodicity"></a>
+
+Coal Mine allows the periodicity of a canary to vary automatically
+based on the time, date, day of week, etc. There are three contexts in
+which this is useful:
+
+1. a recurring task executes with different frequencies at different
+   times;
+2. a continuous recurring task takes more or less time to finish at
+   different times; or
+3. the urgency of responding to delays in a recurring task varies at
+   different times.
+
+To specify a varying periodicity for a canary, instead of just
+specifying a number of seconds, you specify a serious of
+[crontab-like directives](https://github.com/josiahcarlson/parse-crontab)
+separated by semicolons. Here's an example, split onto multiple lines
+for clarity:
+
+    # 5-minute delays are ok on weekends ;
+    * * * * sat,sun 300 ;
+    # 5-minute days are ok overnight ;
+    * 0-12 * * mon-fri 300 ;
+    # otherwise, we require a shorter periodicity ;
+    * 13-23 * * mon-fri 90
+
+Notes:
+
+* The last field in each directive is the periodicity value, i.e., the
+  maximum number of seconds to allow between triggers during the
+  specified time range.
+
+* As indicated above, even though the example is shown split across
+  multiple lines, it must be specified all on one line when providing
+  it to Coal Mine.
+
+* Note that comments like the ones shown above really are allowed in
+  the schedule you specify to Coal Mine -- they're not just for
+  decoration in the example -- but you need to remember to end them
+  with semicolons.
+
+* Schedule directives _cannot overlap_. For example, this won't work,
+  because the second directive overlaps with the first one every
+  Saturday and Sunday between midnight and noon:
+
+        * * * * sat,sun 60 ;
+        * 0-11 * * * 90
+
+* If a canary's schedule has gaps, then _the canary is effectively
+  paused_ during them. For example, in this schedule, the canary would
+  be paused all day Saturday:
+
+        * * * * sun 300 ;
+        * * * * mon-fri 60
+
+* As with everything else in Coal Mine, the hours and minutes
+  specified here are in UTC.
+
+* When you create or update a canary with a periodicity schedule, the
+  canary data returned to you in response will include a
+  "periodicity_schedule" field showing how the schedule you specified
+  plays out. The schedule will extend far enough into the future for
+  each of the directives you specified to be be shown at least once,
+  or for a week, whichever is longer.
 
 Installation and configuration
 ------------------------------

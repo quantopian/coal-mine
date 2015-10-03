@@ -22,6 +22,7 @@ import argparse
 from configparser import SafeConfigParser
 import os
 import pprint
+import re
 import requests
 import sys
 
@@ -67,8 +68,8 @@ def main():
     create_parser = subparsers.add_parser('create', help='Create canary',
                                           parents=[connect_parser])
     create_parser.add_argument('--name', action='store', required=True)
-    create_parser.add_argument('--periodicity', action='store', type=int,
-                               required=True)
+    create_parser.add_argument('--periodicity', action='store',
+                               type=periodicity, required=True)
     create_parser.add_argument('--description', action='store')
     create_parser.add_argument('--email', action='append')
     create_parser.add_argument('--paused', action='store_true', default=False)
@@ -90,7 +91,8 @@ def main():
     update_parser_group = update_parser.add_mutually_exclusive_group()
     update_parser_group.add_argument('--slug', action='store')
     update_parser_group.add_argument('--id', action='store')
-    update_parser.add_argument('--periodicity', action='store', type=int)
+    update_parser.add_argument('--periodicity', action='store',
+                               type=periodicity)
     update_parser.add_argument('--description', action='store')
     update_parser.add_argument('--email', action='append', help='Specify "-" '
                                'to clear existing email(s)')
@@ -228,6 +230,12 @@ def call(command, args, payload=None, action='print'):
         return response.json()
     else:
         raise Exception('Unrecognized action: {}'.format(action))
+
+
+def periodicity(str):
+    if re.match(r'[0-9.]+$', str):
+        return float(str)
+    return str
 
 if __name__ == '__main__':
     main()

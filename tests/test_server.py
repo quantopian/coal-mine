@@ -199,3 +199,10 @@ class ServerTests(TestCase):
             self.make_url('unpause'),
             {'id': response['canary']['id']})
         self.assertEqual(self.response_code, '200 OK')
+
+    def test_scheduled_periodicity(self):
+        self.call_application(
+            self.make_url('create'),
+            {'name': 'test_scheduled_periodicity',
+             'periodicity': '* * * * sat,sun 600; * * * * mon-fri 90'})
+        self.assertEqual(self.response_code, '200 OK')
