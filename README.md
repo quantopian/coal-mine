@@ -542,8 +542,6 @@ Other notification mechanisms.
 
 More smtplib configuration options in INI file.
 
-Unit tests would be nice.
-
 Web UI.
 
 Links to Web UI in email notifications.
