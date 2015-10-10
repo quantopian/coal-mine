@@ -513,7 +513,7 @@ Response is the same as shown for get().
 
 ### Unpause canary
 
-Endpoint `/coal-mine/v1/canary/unpause`
+Endpoint: `/coal-mine/v1/canary/unpause`
 
 Side effects:
 
