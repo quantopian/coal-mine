@@ -134,10 +134,14 @@ def main():
     unpause_parser.set_defaults(func=handle_unpause)
 
     args = parser.parse_args()
-    if args.no_auth_key:
-        args.auth_key = None
-    del args.no_auth_key
-    args.func(args)
+    try:
+        if args.no_auth_key:
+            args.auth_key = None
+        del args.no_auth_key
+        args.func(args)
+    except AttributeError:
+        parser.error("No command specified")
+        pass
 
 
 def handle_configure(args):
