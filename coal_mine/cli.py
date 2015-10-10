@@ -40,16 +40,22 @@ def main():
         section = config['coal-mine']
 
     connect_parser = argparse.ArgumentParser(add_help=False)
+    host_default = section.get('host', 'localhost')
     connect_parser.add_argument('--host', action='store',
-                                help="Server host name",
-                                default=section.get('host', 'localhost'))
+                                help="Server host name (default {})".format(
+                                    host_default),
+                                default=host_default)
+    port_default = section.getint('port', 80)
     connect_parser.add_argument('--port', action='store', type=int,
-                                help='Server port',
-                                default=section.getint('port', 80))
+                                help='Server port (default {})'.format(
+                                    port_default),
+                                default=port_default)
     auth_key_group = connect_parser.add_mutually_exclusive_group()
+    auth_key_default = section.get('auth-key', None)
     auth_key_group.add_argument('--auth-key', action='store',
-                                help='Authentication key',
-                                default=section.get('auth-key', None))
+                                help='Authentication key (default {})'.format(
+                                    '<hidden>' if auth_key_default else None),
+                                default=auth_key_default)
     auth_key_group.add_argument('--no-auth-key', action='store_true',
                                 help='Disable authentication',
                                 default=False)
