@@ -93,6 +93,7 @@ def main():  # pragma: no cover
         log.info('Server authentication enabled')
     except:
         log.warning('Server authentication DISABLED')
+        auth_key = None
 
     httpd = make_server('', listen_port,
                         partial(application, business_logic, auth_key),
