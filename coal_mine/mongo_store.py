@@ -20,7 +20,8 @@ from coal_mine.abstract_store import AbstractStore
 import bson
 from copy import copy
 from logbook import Logger
-import pymongo
+from pymongo import MongoClient, IndexModel, ASCENDING
+from pymongo.errors import AutoReconnect
 import re
 import time
 
@@ -30,43 +31,34 @@ log = Logger('MongoStore')
 class MongoStore(AbstractStore):
     def __init__(self, hosts, database, username, password, **kwargs):
         """Keyword arguments are the same as what would be passed to
-        MongoClient or MongoReplicaSetClient."""
+        MongoClient."""
 
-        if 'replicaSet' in kwargs:
-            client = pymongo.MongoReplicaSetClient
-        else:
-            client = pymongo.MongoClient
-        connection = client(hosts, **kwargs)
+        connection = MongoClient(hosts, **kwargs)
         db = connection[database]
         if username or password:
             db.authenticate(username, password)
         self.db = db
         self.collection = self.db['canaries']
 
-        self.collection.ensure_index([('id', pymongo.ASCENDING)],
-                                     unique=True)
-
-        # for list()
-        self.collection.ensure_index([('paused', pymongo.ASCENDING),
-                                      ('late', pymongo.ASCENDING),
-                                      ('deadline', pymongo.ASCENDING)])
-        self.collection.ensure_index([('paused', pymongo.ASCENDING),
-                                      ('deadline', pymongo.ASCENDING)])
-        self.collection.ensure_index([('late', pymongo.ASCENDING),
-                                      ('deadline', pymongo.ASCENDING)])
-
-        # for find_identifier(), as well as to ensure unique slugs
-        self.collection.ensure_index([('slug', pymongo.ASCENDING)],
-                                     unique=True)
+        self.collection.create_indexes([
+            IndexModel([('id', ASCENDING)]),
+            # for list()
+            IndexModel([('paused', ASCENDING),
+                        ('late', ASCENDING),
+                        ('deadline', ASCENDING)]),
+            IndexModel([('paused', ASCENDING), ('deadline', ASCENDING)]),
+            IndexModel([('late', ASCENDING), ('deadline', ASCENDING)]),
+            # for find_identifier(), as well as to ensure unique slugs
+            IndexModel([('slug', ASCENDING)], unique=True)])
 
     def create(self, canary):
         canary['_id'] = bson.ObjectId()
         while True:
             try:
-                self.collection.save(canary)
+                self.collection.insert_one(canary)
                 del canary['_id']
                 break
-            except pymongo.errors.AutoReconnect:
+            except AutoReconnect:
                 log.exception('save failure, retrying')
                 time.sleep(1)
 
@@ -82,9 +74,9 @@ class MongoStore(AbstractStore):
             doc['$unset'] = unset
         while True:
             try:
-                self.collection.update({'id': identifier}, doc)
+                self.collection.update_one({'id': identifier}, doc)
                 return
-            except pymongo.errors.AutoReconnect:
+            except AutoReconnect:
                 log.exception('update failure, retrying')
                 time.sleep(1)
 
@@ -92,11 +84,11 @@ class MongoStore(AbstractStore):
         while True:
             try:
                 canary = self.collection.find_one({'id': identifier},
-                                                  fields={'_id': False})
+                                                  projection={'_id': False})
                 if not canary:
                     raise KeyError('No such canary {}'.format(identifier))
                 return canary
-            except pymongo.errors.AutoReconnect:
+            except AutoReconnect:
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
 
@@ -116,7 +108,7 @@ class MongoStore(AbstractStore):
             spec['late'] = late
 
         if order_by is not None:
-            order_by = [(order_by, pymongo.ASCENDING)]
+            order_by = [(order_by, ASCENDING)]
 
         if search is not None:
             search = re.compile(search)
@@ -126,11 +118,11 @@ class MongoStore(AbstractStore):
 
         while True:
             try:
-                for canary in self.collection.find(spec, fields=fields,
+                for canary in self.collection.find(spec, projection=fields,
                                                    sort=order_by, skip=skip):
                     yield canary
                 break
-            except pymongo.errors.AutoReconnect:
+            except AutoReconnect:
                 log.exception('find failure, retrying')
                 time.sleep(1)
 
@@ -145,7 +137,7 @@ class MongoStore(AbstractStore):
                 if result['n'] == 0:
                     raise KeyError('No such canary {}'.format(identifier))
                 return
-            except pymongo.errors.AutoReconnect:
+            except AutoReconnect:
                 log.exception('remove failure, retrying')
                 time.sleep(1)
 
@@ -156,6 +148,6 @@ class MongoStore(AbstractStore):
                 if not result:
                     raise KeyError('No such canary {}'.format(slug))
                 return result['id']
-            except pymongo.errors.AutoReconnect:
+            except AutoReconnect:
                 log.exception('find_one failure, retrying')
                 time.sleep(1)

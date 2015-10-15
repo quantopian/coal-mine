@@ -70,6 +70,7 @@ def main():  # pragma: no cover
             sys.exit('No "{}" setting in "mongodb" section of config file'.
                      format(arg))
         kwargs.pop(arg)
+    args[0] = [s.strip() for s in args[0].split(',')]
     store = MongoStore(*args, **kwargs)
 
     try:
