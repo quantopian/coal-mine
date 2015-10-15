@@ -1,4 +1,4 @@
 crontab==0.20.2
-logbook==0.9.1
+logbook==0.11.2
 pymongo==3.0.3
-requests==2.6.0
+requests==2.8.1
