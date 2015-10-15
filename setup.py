@@ -26,7 +26,7 @@ setup(
         'Topic :: System :: Systems Administration',
     ],
     packages=find_packages(),
-    setup_requires=open('requirements_dev.txt').read(),
+    setup_requires=['pypandoc'],
     install_requires=open('requirements.txt').read(),
     entry_points={
         'console_scripts': [
