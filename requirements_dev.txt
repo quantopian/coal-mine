@@ -8,3 +8,6 @@ pep8==1.5.7
 # 0.9.x, 1.x break flake8 2.4.x
 pyflakes==0.8.1
 pypandoc==1.0.5
+piprot==0.9.4
+requests-futures==0.9.5
+six==1.10.0
