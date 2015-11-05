@@ -127,23 +127,18 @@ def application(business_logic, auth_key, environ, start_response):
             environ['QUERY_STRING'] = qs
         path_info = environ['PATH_INFO'] = url_prefix + 'trigger'
 
-    if not path_info.startswith(url_prefix):
-        start_response('404 Not Found', headers=[])
-        return []
-
     command = path_info[len(url_prefix):]
-
-    if command not in handlers:
-        start_response('404 Not Found', headers=[])
-        return []
-
     q = parse_qs(environ['QUERY_STRING'])
-    if auth_key and command != 'trigger' and \
-       q.pop('auth_key', [None])[0] != auth_key:
-        start_response('401 Unauthorized', headers=[])
-        return []
 
-    (status_code, data) = handlers[command](business_logic, q)
+    if not path_info.startswith(url_prefix) or command not in handlers:
+        status_code = '404 Not Found'
+        data = {'status': 'error', 'error': status_code}
+    elif (auth_key and command != 'trigger' and
+          q.pop('auth_key', [None])[0] != auth_key):
+        status_code = '401 Unauthorized'
+        data = {'status': 'error', 'error': status_code}
+    else:
+        (status_code, data) = handlers[command](business_logic, q)
 
     # If you give wsgiref a single, huge response blob to send, it sends the
     # data to the socket in a single call to write(), which isn't guaranteed
