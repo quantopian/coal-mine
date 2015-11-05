@@ -30,6 +30,9 @@ class lazy_convert(object):
     def split(self, *args, **kwargs):
         return str(self).split(*args, **kwargs)
 
+    def replace(self, *args, **kwargs):
+        return str(self).replace(*args, **kwargs)
+
 
 setup(
     name="coal_mine",
