@@ -191,8 +191,7 @@ settings that it can or must contain:
   * max\_size -- max log file size before rotating (default: 1048576)
   * backup\_count -- number of rotated log files to keep (default: 5)
 * \[mongodb\] -- required
-  * hosts -- the first argument to pymongo's MongoClient or
-    MongoReplicaSetClient
+  * hosts -- the first argument to pymongo 3's MongoClient
   * database -- database name. Coal Mine will create only one
     collection in the database, called "canaries".
   * username -- must be specified, but can be blank if no
@@ -200,8 +199,7 @@ settings that it can or must contain:
   * password -- must be specified, but can be blank if no
     authentication is required
   * replicaSet -- must be specified if using a replicaset
-  * other arguments will be passed through to MongoClient or
-    MongoReplicaSetClient
+  * other arguments will be passed through to MongoClient
 * \[email\] -- required
   * sender -- email address to put in the From line of notification
     emails
