@@ -1,13 +1,13 @@
-coverage==4.0.1
-flake8==2.4.1
-# 0.4.x breaks flake8 2.4.x
+coverage==4.0.2
+flake8==2.5.0
+# 0.4.x breaks flake8 2.5
 mccabe==0.3.1
 nose==1.3.7
-# 1.6.x breaks flake8 2.4.x
+# 1.6.x breaks flake8 2.5
 pep8==1.5.7
-# 0.9.x, 1.x break flake8 2.4.x
-pyflakes==0.8.1
-pypandoc==1.0.5
+# 1.1+ break flake8 2.5
+pyflakes==1.0.0
+pypandoc==1.1.2
 piprot==0.9.4
 requests-futures==0.9.5
 six==1.10.0
