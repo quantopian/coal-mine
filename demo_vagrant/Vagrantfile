@@ -84,7 +84,7 @@ postfix	postfix/chattr	boolean	false
 postfix	postfix/mailname	string	vagrant-ubuntu-vivid-64
 postfix	postfix/destinations	string	vagrant-ubuntu-vivid-64, localhost.localdomain, localhost
 EOF"
-  config.vm.provision :shell, inline: "apt-get install -y pandoc mongodb-server postfix python3-dev emacs mailutils"
+  config.vm.provision :shell, inline: "apt-get install -y pandoc mongodb-server postfix emacs mailutils"
   # Ubuntu's python3-pip package is borked.
   config.vm.provision :shell, inline: "wget -q https://bootstrap.pypa.io/get-pip.py && " \
                                       "python3 get-pip.py"
