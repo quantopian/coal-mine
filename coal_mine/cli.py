@@ -143,7 +143,6 @@ def main():
     try:
         if args.no_auth_key:
             args.auth_key = None
-        del args.no_auth_key
         args.func(args)
     except AttributeError:
         parser.error("No command specified")
