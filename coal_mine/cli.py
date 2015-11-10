@@ -30,9 +30,9 @@ config_file = '~/.coal-mine.ini'
 config_section = 'coal-mine'
 
 
-def main():
+def main(args, config_file):
     config = SafeConfigParser()
-    config.read([os.path.expanduser(config_file)])
+    config.read([config_file])
     try:
         section = config[config_section]
     except KeyError:
@@ -69,7 +69,8 @@ def main():
                                              'to ' + config_file,
                                              parents=[connect_parser])
     configure_parser.set_defaults(func=handle_configure,
-                                  config_parser=config)
+                                  config_parser=config,
+                                  config_file=config_file)
 
     create_parser = subparsers.add_parser('create', help='Create canary',
                                           parents=[connect_parser])
@@ -139,7 +140,7 @@ def main():
     unpause_parser.add_argument('--comment', action='store')
     unpause_parser.set_defaults(func=handle_unpause)
 
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     try:
         if args.no_auth_key:
             args.auth_key = None
@@ -158,7 +159,7 @@ def handle_configure(args):
         section['auth-key'] = args.auth_key
     elif args.no_auth_key:
         section.pop('auth-key', None)
-    with open(os.path.expanduser(config_file), 'w') as configfile:
+    with open(args.config_file, 'w') as configfile:
         args.config_parser.write(configfile)
 
 
@@ -228,15 +229,14 @@ def call(command, args, payload=None, action='print'):
         sys.stderr.write('{} {}\n'.format(
             response.status_code, response.reason))
         try:
-            pprint.pprint(response.json(), sys.stderr)
+            sys.exit(pprint.pformat(response.json()).strip())
         except:
-            sys.stderr.write(response.text + '\n')
-        sys.exit(1)
+            sys.exit(response.text)
     if action == 'print':
         pprint.pprint(response.json())
     elif action == 'return':
         return response.json()
-    else:
+    else:  # pragma: no cover
         raise Exception('Unrecognized action: {}'.format(action))
 
 
@@ -245,5 +245,5 @@ def periodicity(str):
         return float(str)
     return str
 
-if __name__ == '__main__':
-    main()
+if __name__ == '__main__':  # pragma: no cover
+    main(sys.argv[1:], os.path.expanduser(config_file))
