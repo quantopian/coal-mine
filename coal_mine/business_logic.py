@@ -31,6 +31,11 @@ from textwrap import dedent
 log = Logger('BusinessLogic')
 
 
+class CanaryNotFoundError(Exception):
+    def __init__(self, **kwargs):
+        super(CanaryNotFoundError, self).__init__(str(kwargs))
+
+
 class AlreadyExistsError(Exception):
     pass
 
@@ -108,7 +113,11 @@ class BusinessLogic(object):
 
     def update(self, identifier, name=None, periodicity=None,
                description=None, emails=None):
-        canary = self.store.get(identifier)
+        try:
+            canary = self.store.get(identifier)
+        except KeyError:
+            raise CanaryNotFoundError(identifier=identifier)
+
         updates = {}
         notify = False
 
@@ -125,7 +134,7 @@ class BusinessLogic(object):
                     raise AlreadyExistsError(
                         "Canary {} already exists with identifier {}".
                         format(new_slug, conflict))
-                except KeyError:
+                except CanaryNotFoundError:
                     pass
                 updates['slug'] = new_slug
             updates['name'] = name
@@ -172,7 +181,11 @@ class BusinessLogic(object):
         return canary
 
     def trigger(self, identifier, comment=None):
-        canary = self.store.get(identifier)
+        try:
+            canary = self.store.get(identifier)
+        except KeyError:
+            raise CanaryNotFoundError(identifier=identifier)
+
         updates = {}
         was_late = canary['late']
         was_paused = canary['paused']
@@ -208,7 +221,11 @@ class BusinessLogic(object):
         return (was_late, was_paused)
 
     def pause(self, identifier, comment=None):
-        canary = self.store.get(identifier)
+        try:
+            canary = self.store.get(identifier)
+        except KeyError:
+            raise CanaryNotFoundError(identifier=identifier)
+
         updates = {}
 
         if canary['paused']:
@@ -242,7 +259,11 @@ class BusinessLogic(object):
         return canary
 
     def unpause(self, identifier, comment=None):
-        canary = self.store.get(identifier)
+        try:
+            canary = self.store.get(identifier)
+        except KeyError:
+            raise CanaryNotFoundError(identifier=identifier)
+
         updates = {}
 
         if not canary['paused']:
@@ -275,7 +296,11 @@ class BusinessLogic(object):
         return canary
 
     def delete(self, identifier):
-        canary = self.store.get(identifier)
+        try:
+            canary = self.store.get(identifier)
+        except KeyError:
+            raise CanaryNotFoundError(identifier=identifier)
+
         self.store.delete(identifier)
 
         log.info('Deleted canary {} ({})'.format(canary['name'], identifier))
@@ -283,7 +308,11 @@ class BusinessLogic(object):
         self.schedule_next_deadline()
 
     def get(self, identifier):
-        canary = self.store.get(identifier)
+        try:
+            canary = self.store.get(identifier)
+        except KeyError:
+            raise CanaryNotFoundError(identifier=identifier)
+
         self.periodicity_schedule(canary)
         return canary
 
@@ -398,7 +427,13 @@ class BusinessLogic(object):
         if name:
             slug = self.slug(name)
 
-        return self.store.find_identifier(slug)
+        try:
+            return self.store.find_identifier(slug)
+        except KeyError:
+            if name:
+                raise CanaryNotFoundError(name=name)
+            else:
+                raise CanaryNotFoundError(slug=slug)
 
     def create_identifier(self):
         while True:

@@ -206,3 +206,9 @@ class ServerTests(TestCase):
             {'name': 'test_scheduled_periodicity',
              'periodicity': '* * * * sat,sun 600; * * * * mon-fri 90'})
         self.assertEqual(self.response_code, '200 OK')
+
+    def test_not_found(self):
+        self.call_application(
+            self.make_url('trigger'),
+            {'name': 'test_not_found'})
+        self.assertEqual(self.response_code, '404 Not Found')

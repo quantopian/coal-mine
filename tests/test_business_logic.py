@@ -12,8 +12,13 @@
 # implied.  See the License for the specific language governing
 # permissions and limitations under the License.
 
-from coal_mine.business_logic import \
-    AlreadyExistsError, AlreadyPausedError, AlreadyUnpausedError, BusinessLogic
+from coal_mine.business_logic import (
+    AlreadyExistsError,
+    AlreadyPausedError,
+    AlreadyUnpausedError,
+    CanaryNotFoundError,
+    BusinessLogic,
+)
 from coal_mine.memory_store import MemoryStore
 from datetime import datetime, timedelta
 import smtplib
@@ -106,6 +111,10 @@ class BusinessLogicTests(TestCase):
         time.sleep(1)
         self.logic.update(created['id'], periodicity=1)
 
+    def test_update_not_found(self):
+        with self.assertRaises(CanaryNotFoundError):
+            self.logic.update('testunfo', name='test_update_not_found')
+
     def test_trigger(self):
         created = self.logic.create(name='test_trigger', periodicity=12352)
         self.logic.trigger(created['id'])
@@ -122,6 +131,10 @@ class BusinessLogicTests(TestCase):
                                     paused=True)
         self.logic.trigger(created['id'])
 
+    def test_trigger_not_found(self):
+        with self.assertRaises(CanaryNotFoundError):
+            self.logic.trigger('testtnfo')
+
     def test_pause(self):
         created = self.logic.create(name='test_pause', periodicity=1)
         time.sleep(1.1)
@@ -135,12 +148,24 @@ class BusinessLogicTests(TestCase):
         self.logic.unpause(created['id'],
                            comment='test_pause unpause comment')
 
+    def test_pause_not_found(self):
+        with self.assertRaises(CanaryNotFoundError):
+            self.logic.pause('testpnfo')
+
+    def test_unpause_not_found(self):
+        with self.assertRaises(CanaryNotFoundError):
+            self.logic.unpause('testunfo')
+
     def test_delete(self):
         created = self.logic.create(name='test_delete', periodicity=12354)
         self.logic.get(created['id'])
         self.logic.delete(created['id'])
-        with self.assertRaises(KeyError):
+        with self.assertRaises(CanaryNotFoundError):
             self.logic.get(created['id'])
+
+    def test_delete_not_found(self):
+        with self.assertRaises(CanaryNotFoundError):
+            self.logic.delete('testdnfo')
 
     def test_list(self):
         self.logic.list()
@@ -172,6 +197,13 @@ class BusinessLogicTests(TestCase):
             self.logic.find_identifier()
         with self.assertRaisesRegexp(Exception, 'Specify only one'):
             self.logic.find_identifier(name='foo', slug='bar')
+
+    def test_find_identifier_slug_not_found(self):
+        with self.assertRaisesRegexp(
+                CanaryNotFoundError,
+                r"'slug': 'test-find-identifier-slug-not-found'"):
+            self.logic.find_identifier(
+                slug='test-find-identifier-slug-not-found')
 
     def test_add_history(self):
         history = []

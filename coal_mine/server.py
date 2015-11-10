@@ -18,7 +18,7 @@
 Coal Mine WSGI server
 """
 
-from coal_mine.business_logic import BusinessLogic
+from coal_mine.business_logic import BusinessLogic, CanaryNotFoundError
 from copy import copy
 from cgi import parse_qs
 from configparser import SafeConfigParser, NoSectionError, NoOptionError
@@ -246,6 +246,10 @@ def handle_exceptions(f):
     def wrapper(business_logic, query):
         try:
             return f(business_logic, query)
+        except CanaryNotFoundError as e:
+            log.warning('Canary not found: {}', str(e))
+            return ('404 Not Found',
+                    {'status': 'error', 'error': 'Canary Not Found'})
         except Exception as e:
             log.exception('Exception in {}'.format(f))
             return ('400 Bad Request', {'status': 'error', 'error': repr(e)})
