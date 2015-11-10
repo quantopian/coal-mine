@@ -51,8 +51,23 @@ class MongoStore(AbstractStore):
         self.db = db
         self.collection = self.db['canaries']
 
+        # Compatibility for the fact that there were a couple releases (0.4.1
+        # through 0.4.3) when the the code was creating the index on id
+        # without unique=True.
+        existing_indexes = self.collection.index_information()
+        try:
+            id_index = existing_indexes['id_1']
+            try:
+                is_unique = id_index['unique']
+            except:
+                is_unique = False
+            if not is_unique:
+                self.collection.drop_index('id_1')
+        except:
+            pass
+
         self.collection.create_indexes([
-            IndexModel([('id', ASCENDING)]),
+            IndexModel([('id', ASCENDING)], unique=True),
             # for list()
             IndexModel([('paused', ASCENDING),
                         ('late', ASCENDING),
