@@ -23,6 +23,7 @@ from logbook import Logger
 from pymongo import MongoClient, IndexModel, ASCENDING
 from pymongo.errors import AutoReconnect
 import re
+import ssl
 import time
 
 log = Logger('MongoStore')
@@ -33,6 +34,16 @@ class MongoStore(AbstractStore):
         """Keyword arguments are the same as what would be passed to
         MongoClient."""
 
+        if 'ssl_cert_reqs' in kwargs:
+            if kwargs['ssl_cert_reqs'] == 'NONE':
+                kwargs['ssl_cert_reqs'] = ssl.CERT_NONE
+            elif kwargs['ssl_cert_reqs'] == 'OPTIONAL':
+                kwargs['ssl_cert_reqs'] = ssl.CERT_OPTIONAL
+            elif kwargs['ssl_cert_reqs'] == 'REQUIRED':
+                kwargs['ssl_cert_reqs'] = ssl.CERT_REQUIRED
+            else:
+                raise TypeError('ssl_cert_reqs must be NONE, OPTIONAL, or '
+                                'REQUIRED')
         connection = MongoClient(hosts, **kwargs)
         db = connection[database]
         if username or password:
