@@ -171,9 +171,7 @@ def handle_delete(args):
 
 
 def handle_update(args):
-    if args.id and args.slug:
-        sys.exit("Don't specify both --id and --slug")
-    elif not (args.name or args.id or args.slug):
+    if not (args.name or args.id or args.slug):
         sys.exit('Must specify --name, --id, or --slug')
     if args.name and not (args.id or args.slug):
         found = call('get', args, {'name': args.name}, action='return')
