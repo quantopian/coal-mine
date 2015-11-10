@@ -30,7 +30,7 @@ config_file = '~/.coal-mine.ini'
 config_section = 'coal-mine'
 
 
-def main(args, config_file):
+def doit(args, config_file):
     config = SafeConfigParser()
     config.read([config_file])
     try:
@@ -245,5 +245,9 @@ def periodicity(str):
         return float(str)
     return str
 
+
+def main():  # pragma: no cover
+    doit(sys.argv[1:], os.path.expanduser(config_file))
+
 if __name__ == '__main__':  # pragma: no cover
-    main(sys.argv[1:], os.path.expanduser(config_file))
+    main()

@@ -60,7 +60,7 @@ setup(
     entry_points={
         'console_scripts': [
             "coal-mine = coal_mine.server:main",
-            "cmcli = coal_mine.cli:main"
+            "cmcli = coal_mine.cli:setup_main"
         ]
     },
     zip_safe=True,

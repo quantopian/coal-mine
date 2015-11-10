@@ -38,7 +38,7 @@ class CLITests(TestCase):
         port = '12345'
         auth_key = 'arglebargle'
         with tempfile.NamedTemporaryFile(delete=False) as tf:
-            cli.main(('configure', '--host', host, '--port', port,
+            cli.doit(('configure', '--host', host, '--port', port,
                       '--auth-key', auth_key), tf.name)
             config = SafeConfigParser()
             config.read([tf.name])
@@ -48,21 +48,21 @@ class CLITests(TestCase):
 
             add_response('pause?name=froodle&auth_key=arglebargle',
                          host=host, port=port)
-            cli.main(('pause', '--name', 'froodle'), tf.name)
+            cli.doit(('pause', '--name', 'froodle'), tf.name)
 
-            cli.main(('configure', '--no-auth-key'), tf.name)
+            cli.doit(('configure', '--no-auth-key'), tf.name)
             config = SafeConfigParser()
             config.read([tf.name])
             with self.assertRaises(KeyError):
                 self.assertEqual(auth_key, config['coal-mine']['auth-key'])
 
             add_response('pause?name=froodle', host=host, port=port)
-            cli.main(('pause', '--name', 'froodle'), tf.name)
+            cli.doit(('pause', '--name', 'froodle'), tf.name)
 
     def test_no_command(self):
         with patch('sys.stderr', StringIO()):
             with self.assertRaises(SystemExit):
-                cli.main((), '/dev/null')
+                cli.doit((), '/dev/null')
             self.assertRegexpMatches(sys.stderr.getvalue(),
                                      r'No command specified')
 
@@ -70,25 +70,25 @@ class CLITests(TestCase):
     def test_create(self):
         with patch('sys.stderr', StringIO()):
             with self.assertRaises(SystemExit):
-                cli.main(('create', '--name', 'froodle'), '/dev/null')
+                cli.doit(('create', '--name', 'froodle'), '/dev/null')
             self.assertRegexpMatches(
                 sys.stderr.getvalue(),
                 r'error: the following arguments are required: --periodicity')
 
         add_response('create?paused=False&name=froodle&periodicity=60.0')
-        cli.main(('create', '--name', 'froodle', '--periodicity', '60'),
+        cli.doit(('create', '--name', 'froodle', '--periodicity', '60'),
                  '/dev/null')
 
     @responses.activate
     def test_delete(self):
         add_response('delete?slug=froodle')
-        cli.main(('delete', '--slug', 'froodle'), '/dev/null')
+        cli.doit(('delete', '--slug', 'froodle'), '/dev/null')
 
     @responses.activate
     def test_update(self):
         with patch('sys.stderr', StringIO()):
             with self.assertRaises(SystemExit):
-                cli.main(('update', '--id', 'abcdefgh', '--slug', 'foo'),
+                cli.doit(('update', '--id', 'abcdefgh', '--slug', 'foo'),
                          '/dev/null')
             self.assertRegexpMatches(
                 sys.stderr.getvalue(),
@@ -97,54 +97,54 @@ class CLITests(TestCase):
         with self.assertRaisesRegexp(
                 SystemExit,
                 r'Must specify --name, --id, or --slug'):
-            cli.main(('update', '--periodicity', '120'), '/dev/null')
+            cli.doit(('update', '--periodicity', '120'), '/dev/null')
 
         add_response('update?id=abcdefgh&name=freedle')
-        cli.main(('update', '--id', 'abcdefgh', '--name', 'freedle'),
+        cli.doit(('update', '--id', 'abcdefgh', '--name', 'freedle'),
                  '/dev/null')
 
         add_response('get?name=froodle&auth_key=arglebargle',
                      body='{"status": "ok", "canary": {"id": "bcdefghi"}}')
         add_response('update?description=foodesc&id=bcdefghi&'
                      'auth_key=arglebargle')
-        cli.main(('update', '--name', 'froodle', '--description', 'foodesc',
+        cli.doit(('update', '--name', 'froodle', '--description', 'foodesc',
                   '--auth-key', 'arglebargle'),
                  '/dev/null')
 
     @responses.activate
     def test_get(self):
         add_response('get?name=froodle')
-        cli.main(('get', '--name', 'froodle'), '/dev/null')
+        cli.doit(('get', '--name', 'froodle'), '/dev/null')
 
     @responses.activate
     def test_list(self):
         add_response('list')
-        cli.main(('list',), '/dev/null')
+        cli.doit(('list',), '/dev/null')
 
         add_response('list?search=foo&late=True&paused=True')
-        cli.main(('list', '--paused', '--late', '--search', 'foo'),
+        cli.doit(('list', '--paused', '--late', '--search', 'foo'),
                  '/dev/null')
 
     @responses.activate
     def test_trigger(self):
         add_response('trigger?name=froodle')
-        cli.main(('trigger', '--name', 'froodle'), '/dev/null')
+        cli.doit(('trigger', '--name', 'froodle'), '/dev/null')
 
     @responses.activate
     def test_pause(self):
         add_response('pause?name=froodle')
-        cli.main(('pause', '--name', 'froodle'), '/dev/null')
+        cli.doit(('pause', '--name', 'froodle'), '/dev/null')
 
     @responses.activate
     def test_unpause(self):
         add_response('unpause?name=froodle')
-        cli.main(('unpause', '--name', 'froodle'), '/dev/null')
+        cli.doit(('unpause', '--name', 'froodle'), '/dev/null')
 
     @responses.activate
     def test_bad_response(self):
         with self.assertRaisesRegexp(SystemExit, r'^Not Found$'):
             add_response('get?name=froodle', status=404, body='Not Found')
-            cli.main(('get', '--name', 'froodle'), '/dev/null')
+            cli.doit(('get', '--name', 'froodle'), '/dev/null')
 
     def test_periodicity_string(self):
         val = '* * * * * 65'
