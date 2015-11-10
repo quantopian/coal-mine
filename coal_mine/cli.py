@@ -148,7 +148,6 @@ def main():
         args.func(args)
     except AttributeError:
         parser.error("No command specified")
-        pass
 
 
 def handle_configure(args):
