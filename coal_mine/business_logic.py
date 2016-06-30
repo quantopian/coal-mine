@@ -17,7 +17,8 @@ Business logic for Coal Mine
 """
 
 from copy import copy
-from .crontab_schedule import CronTabSchedule, CronTabScheduleException
+from .crontab_schedule import (
+    CronTabSchedule, CronTabScheduleException, ONE_MINUTE)
 import datetime
 from logbook import Logger
 import math
@@ -485,10 +486,17 @@ class BusinessLogic(object):
                                 '"command" must be a positive number')
         try:
             dt, i = s.next_active(now=whence, multi=False)
+            td = datetime.timedelta(seconds=float(s.key_of(i)))
+            # Will we run off the end of the current schedule when we add the
+            # periodicity? If so, then skip to the next schedule.
+            dt2, i2 = s.next_active(now=dt + td - ONE_MINUTE,
+                                    multi=False)
+            if i2 != i:
+                dt = dt2
+                td = datetime.timedelta(seconds=float(s.key_of(i2)))
         except CronTabScheduleException:
             raise TypeError('malformed periodicity: overlapping schedule '
                             'entries are not allowed')
-        td = datetime.timedelta(seconds=float(s.key_of(i)))
         if dt > whence:
             td += dt - whence
         return td
