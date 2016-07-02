@@ -40,6 +40,9 @@ htmlcov/
 nosetests.xml
 coverage.xml
 
+# NoseId plugin
+.noseids
+
 # Translations
 *.mo
 *.pot
