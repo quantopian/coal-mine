@@ -86,6 +86,21 @@ class BusinessLogicTests(TestCase):
         self.assertEqual(fetched['description'], 'test_update2 description')
         self.assertEqual(fetched['emails'], ['test_update@example.com'])
 
+    def test_update_same_slug(self):
+        created = self.logic.create(name='test_update_same_slug',
+                                    periodicity=5)
+        self.logic.update(created['id'], name='Test_Update_Same_Slug')
+        fetched = self.logic.get(created['id'])
+        self.assertEqual(fetched['name'], 'Test_Update_Same_Slug')
+        self.assertEqual(created['slug'], fetched['slug'])
+
+    def test_update_paused(self):
+        created = self.logic.create('test_update_paused', periodicity=5)
+        self.logic.pause(created['id'])
+        self.logic.update(created['id'], periodicity=10)
+        fetched = self.logic.get(created['id'])
+        self.assertNotIn('deadline', fetched)
+
     def test_update_invalid(self):
         created = self.logic.create(name='test_update_invalid',
                                     periodicity=12349)
@@ -113,6 +128,10 @@ class BusinessLogicTests(TestCase):
                                     periodicity=12351)
         time.sleep(1)
         self.logic.update(created['id'], periodicity=1)
+        fetched = self.logic.get(created['id'])
+        # Note that this test is mostly for code coverage, but we should at
+        # least check that the change we expected is there.
+        self.assertNotEqual(created['periodicity'], fetched['periodicity'])
 
     def test_update_not_found(self):
         with self.assertRaises(CanaryNotFoundError):
@@ -287,3 +306,10 @@ class BusinessLogicTests(TestCase):
         delta = self.logic.calculate_periodicity_delta(periodicity, whence)
         next_deadline = whence + delta
         self.assertEqual(next_deadline, datetime(2016, 6, 30, 1, 9))
+
+    def test_deadline_handler_next_deadline(self):
+        self.logic.create(name='sooner', periodicity=1)
+        later = self.logic.create(name='later', periodicity=2)
+        time.sleep(1.1)
+        next_deadline = next(self.store.upcoming_deadlines())
+        self.assertEqual(later['name'], next_deadline['name'])

@@ -35,6 +35,14 @@ MULTI_SCHEDULE = '''
 * 12-23 * * * C
 '''
 
+GAP_SCHEDULE = '''
+* 12-23 * * * A
+'''
+
+GAP_EXPECTED = [
+    (datetime(2015, 1, 1, 0, 0), datetime(2015, 1, 1, 11, 59), None),
+    (datetime(2015, 1, 1, 12, 0), datetime(2015, 1, 1, 12, 1), ('A',))]
+
 FIXED_EXPECTED = [
     (datetime(2015, 1, 1, 0, 0), datetime(2015, 1, 1, 13, 29), '300'),
     (datetime(2015, 1, 1, 13, 30), datetime(2015, 1, 1, 21, 59), '90'),
@@ -94,6 +102,13 @@ class CronTabScheduleTests(TestCase):
             multi=False)]
         self.assertEqual(slots, DYNAMIC_EXPECTED)
 
+    def test_schedule_iter_gap(self):
+        s = CronTabSchedule(GAP_SCHEDULE)
+        slots = [slot for slot in s.schedule_iter(
+            start=datetime(2015, 1, 1),
+            end=datetime(2015, 1, 1, 12, 1))]
+        self.assertEqual(slots, GAP_EXPECTED)
+
     def test_multi_ok(self):
         s = CronTabSchedule(MULTI_SCHEDULE)
         slots = [slot for slot in s.schedule_iter(
@@ -113,7 +128,8 @@ class CronTabScheduleTests(TestCase):
 
     def test_next_active(self):
         s = CronTabSchedule(SCHEDULE)
-        s.next_active()
+        s.next_active(datetime.now().replace(second=25))
+        s.next_active(datetime.now().replace(second=0, microsecond=0))
 
     def test_next_active_no_schedule(self):
         s = CronTabSchedule('')

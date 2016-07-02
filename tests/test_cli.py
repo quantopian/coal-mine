@@ -59,6 +59,11 @@ class CLITests(TestCase):
             add_response('pause?name=froodle', host=host, port=port)
             cli.doit(('pause', '--name', 'froodle'), tf.name)
 
+            cli.doit(('configure', '--host', host + '2'), tf.name)
+            config = SafeConfigParser()
+            config.read([tf.name])
+            self.assertEqual(host + '2', config['coal-mine']['host'])
+
     def test_no_command(self):
         with patch('sys.stderr', StringIO()):
             with self.assertRaises(SystemExit):
@@ -109,6 +114,13 @@ class CLITests(TestCase):
                      'auth_key=arglebargle')
         cli.doit(('update', '--name', 'froodle', '--description', 'foodesc',
                   '--auth-key', 'arglebargle'),
+                 '/dev/null')
+
+        # Same as above but without --auth-key, for code branch coverage
+        add_response('get?name=froodle',
+                     body='{"status": "ok", "canary": {"id": "bcdefghi"}}')
+        add_response('update?description=foodesc&id=bcdefghi')
+        cli.doit(('update', '--name', 'froodle', '--description', 'foodesc'),
                  '/dev/null')
 
     @responses.activate
