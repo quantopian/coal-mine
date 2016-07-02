@@ -271,9 +271,16 @@ class BusinessLogicTests(TestCase):
             self.logic.create(name='test_periodicity_invalid_overlapping',
                               periodicity='* * * * * 30; * * * * * 60')
 
-    def test_periodicity_delta_wrap(self):
+    def test_periodicity_delta_case_3(self):
+        periodicity = '* 0 * * * 120'
+        whence = datetime(2016, 6, 30, 0, 59)
+        delta = self.logic.calculate_periodicity_delta(periodicity, whence)
+        next_deadline = whence + delta
+        self.assertEqual(next_deadline, datetime(2016, 7, 1, 0, 2))
+
+    def test_periodicity_delta_case_4(self):
         periodicity = '* 0 * * * 120; * 1 * * * 600'
         whence = datetime(2016, 6, 30, 0, 59)
         delta = self.logic.calculate_periodicity_delta(periodicity, whence)
-        next = whence + delta
-        self.assertEqual(next, datetime(2016, 6, 30, 1, 10))
+        next_deadline = whence + delta
+        self.assertEqual(next_deadline, datetime(2016, 6, 30, 1, 9))

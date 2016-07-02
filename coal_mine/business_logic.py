@@ -17,8 +17,7 @@ Business logic for Coal Mine
 """
 
 from copy import copy
-from .crontab_schedule import (
-    CronTabSchedule, CronTabScheduleException, ONE_MINUTE)
+from .crontab_schedule import CronTabSchedule, CronTabScheduleException
 import datetime
 from logbook import Logger
 import math
@@ -484,22 +483,74 @@ class BusinessLogic(object):
             except:
                 raise TypeError('malformed periodicity; each crontab schedule '
                                 '"command" must be a positive number')
+
         try:
-            dt, i = s.next_active(now=whence, multi=False)
-            td = datetime.timedelta(seconds=float(s.key_of(i)))
-            # Will we run off the end of the current schedule when we add the
-            # periodicity? If so, then skip to the next schedule.
-            dt2, i2 = s.next_active(now=dt + td - ONE_MINUTE,
-                                    multi=False)
-            if i2 != i:
-                dt = dt2
-                td = datetime.timedelta(seconds=float(s.key_of(i2)))
+            # There are several cases we need to worry about here:
+            #
+            # 1. There is a currently active schedule as of whence, and whence
+            #    plus the active schedule's periodicity is still within the
+            #    current schedule. Easy-peasy, just use whence + periodicity.
+            # 2. There is no currently active schedule. We need to find the
+            #    next active schedule, then use its start time + periodicity.
+            # 3. There is a currently active schedule, but whence + its
+            #    periodicity pushes us into a time window when there is no
+            #    active schedule. We need to find the next active schedule
+            #    after _that_, then use its start time + periodicity.
+            # 4. There is a currently active schedule, but whence + its
+            #    periodicity pushes us into a _different_ active schedule. We
+            #    need to use the maximum of the latter schedule's start time
+            #    vs. whence + its periodicity.
+            #
+            # We should never skip a schedule entirely.  Therefore, if whence
+            # is within a time window when there is no active schedule, then we
+            # should use the next schedule, _even if whence + td for that
+            # schedule is past the end of its active period. Here's a use case
+            # which explains why...
+            #
+            # Suppose you have a service which shuts down at midnight every
+            # day, starts up at 02:00, spends up to an hour initializing itself
+            # before it begins hitting its canary, and after it triggers its
+            # canary the first time that day is expected to trigger it at least
+            # every ten minutes. Here is how you would express that (semicolons
+            # replaced with newlines for clarity):
+            #
+            #   0    2    * * * 3600
+            #   1-59 2    * * *  600
+            #   *    3-23 * * *  600
+            #
+            # The effect of this schedule will be to set the first deadline of
+            # the day for 03:00, but as soon as the canary is triggered within
+            # the 02:00 - 03:00 window, set the next deadline to ten minutes
+            # from then, even if it's _earlier_ than 03:00, because once it
+            # starts triggering, it should trigger every tem minutes.
+
+            schedule_fetcher = s.schedule_iter(start=whence, multi=False)
+            current_schedule = next(schedule_fetcher)
+
+            if current_schedule[2] is None:
+                # Case 2
+                next_active_schedule = next(schedule_fetcher)
+                td = datetime.timedelta(seconds=float(next_active_schedule[2]))
+                dt = next_active_schedule[0] + td
+                return dt - whence
+            td = datetime.timedelta(seconds=float(current_schedule[2]))
+            if whence + td <= current_schedule[1]:
+                # Case 1
+                return td
+            next_active_schedule = next(schedule_fetcher)
+            if next_active_schedule[2] is None:
+                # Case 3
+                next_active_schedule = next(schedule_fetcher)
+                td = datetime.timedelta(seconds=float(next_active_schedule[2]))
+                dt = next_active_schedule[0] + td
+                return dt - whence
+            # Case 4
+            td = datetime.timedelta(seconds=float(next_active_schedule[2]))
+            dt = max(next_active_schedule[0], whence + td)
+            return dt - whence
         except CronTabScheduleException:
             raise TypeError('malformed periodicity: overlapping schedule '
                             'entries are not allowed')
-        if dt > whence:
-            td += dt - whence
-        return td
 
     # Syntactic sugar.
     def validate_periodicity(self, periodicity):
