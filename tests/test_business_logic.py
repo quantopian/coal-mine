@@ -21,6 +21,7 @@ from coal_mine.business_logic import (
 )
 from coal_mine.memory_store import MemoryStore
 from datetime import datetime, timedelta
+import signal
 import smtplib
 import time
 from unittest import TestCase
@@ -28,13 +29,15 @@ from unittest.mock import patch
 
 
 class BusinessLogicTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.store = MemoryStore()
-        cls.logic = BusinessLogic(cls.store, 'example@example.com')
+    def setUp(self):
+        self.store = MemoryStore()
+        self.logic = BusinessLogic(self.store, 'example@example.com')
+
+    def tearDown(self):
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
     def test_noop(self):
-        # Just tests that setUpClass() doesn't crash.
+        # Just tests that setUp() and tearDown() don't crash.
         pass
 
     def test_create(self):
