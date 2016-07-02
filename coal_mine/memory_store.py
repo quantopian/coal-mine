@@ -17,6 +17,7 @@ In-memory store for Coal Mine, primarily for use by tests
 """
 
 from .abstract_store import AbstractStore
+from copy import deepcopy
 import re
 
 
@@ -25,7 +26,7 @@ class MemoryStore(AbstractStore):
         self.canaries = {}
 
     def create(self, canary):
-        self.canaries[canary['id']] = canary
+        self.canaries[canary['id']] = deepcopy(canary)
 
     def update(self, identifier, updates):
         canary = self.canaries[identifier]
@@ -37,7 +38,7 @@ class MemoryStore(AbstractStore):
                 canary[key] = value
 
     def get(self, identifier):
-        return self.canaries[identifier]
+        return deepcopy(self.canaries[identifier])
 
     def list(self, *, verbose=False, paused=None, late=None, search=None):
         iterator = self.canaries.values()
@@ -58,13 +59,14 @@ class MemoryStore(AbstractStore):
         if not verbose:
             iterator = ({'id': i['id'], 'name': i['name']} for i in iterator)
 
-        return iterator
+        return (deepcopy(i) for i in iterator)
 
     def upcoming_deadlines(self):
         iterator = self.canaries.values()
         iterator = (i for i in iterator if not i['paused'])
         iterator = (i for i in iterator if not i['late'])
-        return iter(sorted(iterator, key=lambda i: i['deadline']))
+        return (deepcopy(i)
+                for i in sorted(iterator, key=lambda i: i['deadline']))
 
     def delete(self, identifier):
         del self.canaries[identifier]
