@@ -163,16 +163,17 @@ class CronTabSchedule(object):
         """
         return self.entries[entry][1] if entry is not None else None
 
-    def schedule_iter(self, start=None, end=None, multi=True):
+    def schedule_iter(self, start=None, end=None, multi=True, endless=False):
         """Iterate through time ranges and their active entries.
 
         Kwargs:
             start (datetime.datetime): Start of time range to schedule.
                 Defaults to now.
             end (datetime.datetime): End of time range to schedule. Defaults to
-                scheduling until all entries have been used at least once, but
-                not for longer than a year.
-            multi: See `next`.
+                scheduling until all entries have been used at least once.
+            multi: See `next_active`.
+            endless: Yield forever, not for only a year. It is an error to
+                to both set this to True and specify a value for `end`.
 
         Returns:
             An iterator which yields tuples of (range start, range end, active
@@ -190,10 +191,10 @@ class CronTabSchedule(object):
         else:
             start = start.replace(second=0, microsecond=0)
         if end is None:
-            # Escape hatch, don't loop forever!
-            end = start + timedelta(days=366)
             hard_stop = False
         else:
+            if endless:
+                raise ValueError("Can't specify both 'end' and 'endless")
             end = end.replace(second=0, microsecond=0)
             hard_stop = True
         used_rules = set()
@@ -204,7 +205,7 @@ class CronTabSchedule(object):
             new_entries = [new_entries]
         current_key = tuple(self.key_of(e) for e in new_entries)
         current_rules = set()
-        while (not hard_stop and len(used_rules) < num_rules) or \
+        while (not hard_stop and (endless or len(used_rules) < num_rules)) or \
               (hard_stop and current_end < end):
             new_entries = self.next_minute(current_end, multi)
             if not multi or new_entries is None:

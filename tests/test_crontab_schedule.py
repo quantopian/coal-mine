@@ -109,6 +109,11 @@ class CronTabScheduleTests(TestCase):
             end=datetime(2015, 1, 1, 12, 1))]
         self.assertEqual(slots, GAP_EXPECTED)
 
+    def test_schedule_iter_end_endless(self):
+        s = CronTabSchedule(SCHEDULE)
+        with self.assertRaises(ValueError):
+            next(s.schedule_iter(end=datetime.now(), endless=True))
+
     def test_multi_ok(self):
         s = CronTabSchedule(MULTI_SCHEDULE)
         slots = [slot for slot in s.schedule_iter(

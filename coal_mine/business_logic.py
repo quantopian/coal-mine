@@ -524,7 +524,8 @@ class BusinessLogic(object):
             # from then, even if it's _earlier_ than 03:00, because once it
             # starts triggering, it should trigger every tem minutes.
 
-            schedule_fetcher = s.schedule_iter(start=whence, multi=False)
+            schedule_fetcher = s.schedule_iter(
+                start=whence, multi=False, endless=True)
             current_schedule = next(schedule_fetcher)
 
             if current_schedule[2] is None:
