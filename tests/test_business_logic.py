@@ -20,21 +20,43 @@ from coal_mine.business_logic import (
     BusinessLogic,
 )
 from coal_mine.memory_store import MemoryStore
+from coal_mine.mongo_store import MongoStore
 from datetime import datetime, timedelta
 import signal
 import smtplib
 import time
 from unittest import TestCase
 from unittest.mock import patch
+import uuid
 
 
-class BusinessLogicTests(TestCase):
+class MemoryStoreTester(object):
+    def get_store(self):
+        return MemoryStore()
+
+    def free_store(self):
+        pass
+
+
+class MongoStoreTester(object):
+    def get_store(self):
+        self.db_hosts = ['localhost']
+        self.db_name = "coal-mine-test-" + str(uuid.uuid4())
+        return MongoStore(self.db_hosts, self.db_name, None, None)
+
+    def free_store(self):
+        self.store.db.client.drop_database(self.db_name)
+
+
+class BusinessLogicTests(object):
     def setUp(self):
-        self.store = MemoryStore()
+        self.store = self.get_store()
         self.logic = BusinessLogic(self.store, 'example@example.com')
 
     def tearDown(self):
+        signal.alarm(0)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        self.free_store()
 
     def test_noop(self):
         # Just tests that setUp() and tearDown() don't crash.
@@ -316,7 +338,6 @@ class BusinessLogicTests(TestCase):
     def test_schedule_next_deadline(self):
         # Make sure StopIteration is handled properly when there are no
         # active canaries.
-        self.store.canaries.clear()
         self.logic.schedule_next_deadline()
 
     def test_periodicity_numeric(self):
@@ -395,3 +416,13 @@ class BusinessLogicTests(TestCase):
         time.sleep(1.1)
         next_deadline = next(self.store.upcoming_deadlines())
         self.assertEqual(later['name'], next_deadline['name'])
+
+
+class BusinessLogicMemoryTests(MemoryStoreTester, BusinessLogicTests,
+                               TestCase):
+    pass
+
+
+class BusinessLogicMongoTests(MongoStoreTester, BusinessLogicTests,
+                              TestCase):
+    pass

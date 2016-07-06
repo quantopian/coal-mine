@@ -355,7 +355,8 @@ def handle_unpause(business_logic, query):
 def jsonify_canary(canary):
     canary = copy(canary)
     for key, value in [(k, v) for k, v in canary.items()]:
-        if value is None:
+        # This should never happen, but just in case...
+        if value is None:  # pragma: no cover
             del canary[key]
 
     if 'deadline' in canary:
