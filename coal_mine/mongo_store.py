@@ -37,9 +37,9 @@ class MongoStore(AbstractStore):
         if 'ssl_cert_reqs' in kwargs:
             if kwargs['ssl_cert_reqs'] == 'NONE':
                 kwargs['ssl_cert_reqs'] = ssl.CERT_NONE
-            elif kwargs['ssl_cert_reqs'] == 'OPTIONAL':
+            elif kwargs['ssl_cert_reqs'] == 'OPTIONAL':  # pragma: no cover
                 kwargs['ssl_cert_reqs'] = ssl.CERT_OPTIONAL
-            elif kwargs['ssl_cert_reqs'] == 'REQUIRED':
+            elif kwargs['ssl_cert_reqs'] == 'REQUIRED':  # pragma: no cover
                 kwargs['ssl_cert_reqs'] = ssl.CERT_REQUIRED
             else:
                 raise TypeError('ssl_cert_reqs must be NONE, OPTIONAL, or '
@@ -63,7 +63,7 @@ class MongoStore(AbstractStore):
                 is_unique = False
             if not is_unique:
                 self.collection.drop_index('id_1')
-        except:
+        except:  # pragma: no cover
             pass
 
         self.collection.create_indexes([
@@ -84,7 +84,7 @@ class MongoStore(AbstractStore):
                 self.collection.insert_one(canary)
                 del canary['_id']
                 break
-            except AutoReconnect:
+            except AutoReconnect:  # pragma: no cover
                 log.exception('save failure, retrying')
                 time.sleep(1)
 
@@ -106,7 +106,7 @@ class MongoStore(AbstractStore):
             try:
                 self.collection.update_one({'id': identifier}, doc)
                 return
-            except AutoReconnect:
+            except AutoReconnect:  # pragma: no cover
                 log.exception('update failure, retrying')
                 time.sleep(1)
 
@@ -118,7 +118,7 @@ class MongoStore(AbstractStore):
                 if not canary:
                     raise KeyError('No such canary {}'.format(identifier))
                 return canary
-            except AutoReconnect:
+            except AutoReconnect:  # pragma: no cover
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
 
@@ -152,7 +152,7 @@ class MongoStore(AbstractStore):
                                                    sort=order_by, skip=skip):
                     yield canary
                 break
-            except AutoReconnect:
+            except AutoReconnect:  # pragma: no cover
                 log.exception('find failure, retrying')
                 time.sleep(1)
 
@@ -167,7 +167,7 @@ class MongoStore(AbstractStore):
                 if result['n'] == 0:
                     raise KeyError('No such canary {}'.format(identifier))
                 return
-            except AutoReconnect:
+            except AutoReconnect:  # pragma: no cover
                 log.exception('remove failure, retrying')
                 time.sleep(1)
 
@@ -178,6 +178,6 @@ class MongoStore(AbstractStore):
                 if not result:
                     raise KeyError('No such canary {}'.format(slug))
                 return result['id']
-            except AutoReconnect:
+            except AutoReconnect:  # pragma: no cover
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
