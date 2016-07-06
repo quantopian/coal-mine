@@ -108,6 +108,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        canary = self.store.get(canary['id'])
         self.periodicity_schedule(canary)
         return canary
 
@@ -177,6 +178,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        canary = self.store.get(canary['id'])
         self.periodicity_schedule(canary)
         return canary
 
@@ -255,6 +257,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        canary = self.store.get(canary['id'])
         self.periodicity_schedule(canary)
         return canary
 
@@ -292,6 +295,7 @@ class BusinessLogic(object):
 
         self.schedule_next_deadline()
 
+        canary = self.store.get(canary['id'])
         self.periodicity_schedule(canary)
         return canary
 
