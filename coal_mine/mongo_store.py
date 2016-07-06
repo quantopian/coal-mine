@@ -95,9 +95,13 @@ class MongoStore(AbstractStore):
             if value is None:
                 del updates[key]
                 unset[key] = ''
-        doc = {'$set': updates}
+        doc = {}
+        if updates:
+            doc['$set'] = updates
         if unset:
             doc['$unset'] = unset
+        if not doc:
+            return
         while True:
             try:
                 self.collection.update_one({'id': identifier}, doc)
