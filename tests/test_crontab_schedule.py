@@ -162,4 +162,5 @@ class CronTabScheduleTests(TestCase):
         # minute rolls over?
         if now.second > 55:
             time.sleep(60 - now.second + 1)
+            now = datetime.now()
         self.assertAlmostEqual(e.next(), e.next(now), places=2)
