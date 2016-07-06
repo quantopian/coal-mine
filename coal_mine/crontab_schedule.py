@@ -37,6 +37,9 @@ class FastCronTab(CronTab):
             self.cached_now = now
         else:
             self.cached_now = now
+            if 'default_utc' not in kwargs:
+                kwargs = kwargs.copy()
+                kwargs['default_utc'] = False
             self.cached_next = timedelta(seconds=super(FastCronTab, self).next(
                 now, *args, **kwargs))
         return self.cached_next.total_seconds()

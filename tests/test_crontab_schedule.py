@@ -164,3 +164,8 @@ class CronTabScheduleTests(TestCase):
             time.sleep(60 - now.second + 1)
             now = datetime.now()
         self.assertAlmostEqual(e.next(), e.next(now), places=2)
+
+    def test_FastCronTab_default_utc(self):
+        e = FastCronTab('* * * * *')
+        self.assertNotEqual(e.next(default_utc=False),
+                            e.next(default_utc=True))
