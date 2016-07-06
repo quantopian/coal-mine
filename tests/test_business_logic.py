@@ -137,6 +137,10 @@ class BusinessLogicTests(TestCase):
         with self.assertRaises(CanaryNotFoundError):
             self.logic.update('testunfo', name='test_update_not_found')
 
+    def test_store_unset(self):
+        created = self.logic.create('foo', 20)
+        self.logic.pause(created['id'])
+
     def test_trigger(self):
         created = self.logic.create(name='test_trigger', periodicity=12352)
         self.logic.trigger(created['id'])
@@ -191,6 +195,77 @@ class BusinessLogicTests(TestCase):
 
     def test_list(self):
         self.logic.list()
+
+    def test_list_no_paused_canaries(self):
+        self.logic.create('not-paused', 20)
+        self.assertEqual(next(self.logic.list())['name'], 'not-paused')
+        self.assertEqual(next(self.logic.list(paused=False))['name'],
+                         'not-paused')
+        with self.assertRaises(StopIteration):
+            next(self.logic.list(paused=True))
+
+    def test_list_only_paused_canary(self):
+        self.logic.create('paused', 20, paused=True)
+        self.assertEqual(next(self.logic.list())['name'], 'paused')
+        self.assertEqual(next(self.logic.list(paused=True))['name'],
+                         'paused')
+        with self.assertRaises(StopIteration):
+            next(self.logic.list(paused=False))
+
+    def test_list_paused_and_unpaused_canary(self):
+        self.logic.create('not-paused', 10)
+        self.logic.create('paused', 20, paused=True)
+        iterator = self.logic.list()
+        self.assertEqual(set((next(iterator)['name'], next(iterator)['name'])),
+                         set(('not-paused', 'paused')))
+        iterator = self.logic.list(paused=True)
+        self.assertEqual(next(iterator)['name'], 'paused')
+        with self.assertRaises(StopIteration):
+            next(iterator)
+        iterator = self.logic.list(paused=False)
+        self.assertEqual(next(iterator)['name'], 'not-paused')
+        with self.assertRaises(StopIteration):
+            next(iterator)
+
+    def test_list_no_late_canaries(self):
+        self.logic.create('not-late', 20)
+        self.assertEqual(next(self.logic.list())['name'], 'not-late')
+        self.assertEqual(next(self.logic.list(late=False))['name'],
+                         'not-late')
+        with self.assertRaises(StopIteration):
+            next(self.logic.list(late=True))
+
+    def test_list_only_late_canary(self):
+        self.logic.create('late', 1)
+        time.sleep(1.1)
+        self.assertEqual(next(self.logic.list())['name'], 'late')
+        self.assertEqual(next(self.logic.list(late=True))['name'],
+                         'late')
+        with self.assertRaises(StopIteration):
+            next(self.logic.list(late=False))
+
+    def test_list_late_and_not_late_canary(self):
+        self.logic.create('late', 1)
+        self.logic.create('not-late', 20)
+        time.sleep(1.1)
+        iterator = self.logic.list()
+        self.assertEqual(set((next(iterator)['name'], next(iterator)['name'])),
+                         set(('not-late', 'late')))
+        iterator = self.logic.list(late=True)
+        self.assertEqual(next(iterator)['name'], 'late')
+        with self.assertRaises(StopIteration):
+            next(iterator)
+        iterator = self.logic.list(late=False)
+        self.assertEqual(next(iterator)['name'], 'not-late')
+        with self.assertRaises(StopIteration):
+            next(iterator)
+
+    def test_list_search(self):
+        self.logic.create('foo', 20)
+        next(self.logic.list(search='foo'))
+        with self.assertRaises(StopIteration):
+            next(self.logic.list(search='froodlefreedle'))
+        next(self.logic.list(verbose=True))
 
     def test_notify(self):
         with patch('smtplib.SMTP'):

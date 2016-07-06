@@ -32,7 +32,7 @@ class MemoryStore(AbstractStore):
         canary = self.canaries[identifier]
         for key, value in ((k, v) for k, v in updates.items()):
             if value is None:
-                if key in canary:
+                if key in canary:  # pragma: no branch
                     del canary[key]
             else:
                 canary[key] = value

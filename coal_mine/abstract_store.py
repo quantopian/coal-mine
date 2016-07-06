@@ -21,7 +21,7 @@ Subclass for a specific storage engine.
 from abc import ABCMeta, abstractmethod
 
 
-class AbstractStore(object, metaclass=ABCMeta):
+class AbstractStore(object, metaclass=ABCMeta):  # pragma: no cover
     @abstractmethod
     def __init__(self, *args, **kwargs):
         """Args and behavior are dependent on the storage engine."""
