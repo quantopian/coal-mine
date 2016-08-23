@@ -36,7 +36,7 @@ class lazy_convert(object):
 
 setup(
     name="coal_mine",
-    version='0.4.9',
+    version='0.4.10',
     author='Quantopian Inc.',
     author_email='opensource@quantopian.com',
     description="Coal Mine - Periodic task execution monitor",
