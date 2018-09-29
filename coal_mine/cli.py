@@ -24,6 +24,7 @@ import os
 import pprint
 import re
 import requests
+from simplejson.errors import JSONDecodeError
 import sys
 
 config_file = '~/.coal-mine.ini'
@@ -230,7 +231,7 @@ def call(command, args, payload=None, action='print'):
             response.status_code, response.reason))
         try:
             sys.exit(pprint.pformat(response.json()).strip())
-        except:
+        except JSONDecodeError:
             sys.exit(response.text)
     if action == 'print':
         pprint.pprint(response.json())
@@ -248,6 +249,7 @@ def periodicity(str):
 
 def main():  # pragma: no cover
     doit(sys.argv[1:], os.path.expanduser(config_file))
+
 
 if __name__ == '__main__':  # pragma: no cover
     main()
