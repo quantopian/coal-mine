@@ -234,7 +234,10 @@ def call(command, args, payload=None, action='print'):
         except JSONDecodeError:
             sys.exit(response.text)
     if action == 'print':
-        pprint.pprint(response.json())
+        try:
+            pprint.pprint(response.json())
+        except BrokenPipeError:
+            pass
     elif action == 'return':
         return response.json()
     else:  # pragma: no cover
