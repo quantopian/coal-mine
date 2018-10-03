@@ -20,6 +20,7 @@ Coal Mine CLI
 
 import argparse
 from configparser import SafeConfigParser
+import copy
 import os
 import pprint
 import re
@@ -111,6 +112,8 @@ def doit(args, config_file):
 
     get_parser = subparsers.add_parser('get', help='Get canary',
                                        parents=[connect_parser, id_parser])
+    get_parser.add_argument('--no-history', '--terse', action='store_true',
+                            help='Omit history in output')
     get_parser.set_defaults(func=handle_get)
 
     list_parser = subparsers.add_parser('list', help='List canaries',
@@ -185,8 +188,21 @@ def handle_update(args):
     call('update', args)
 
 
+def get_no_history_filter(d):
+    d = copy.deepcopy(d)
+    try:
+        del d['canary']['history']
+    except KeyError:
+        pass
+    return d
+
+
 def handle_get(args):
-    call('get', args)
+    if vars(args).pop('no_history', None):
+        filter = get_no_history_filter
+    else:
+        filter = None
+    call('get', args, filter=filter)
 
 
 def handle_list(args):
@@ -214,7 +230,7 @@ def handle_unpause(args):
     pass
 
 
-def call(command, args, payload=None, action='print'):
+def call(command, args, payload=None, action='print', filter=None):
     url = 'http://{}:{}/coal-mine/v1/canary/{}'.format(
         args.host, args.port, command)
     if payload:
@@ -238,7 +254,10 @@ def call(command, args, payload=None, action='print'):
             sys.exit(response.text)
     if action == 'print':
         try:
-            pprint.pprint(response.json())
+            content = response.json()
+            if filter:
+                content = filter(content)
+            pprint.pprint(content)
         except BrokenPipeError:
             pass
     elif action == 'return':
