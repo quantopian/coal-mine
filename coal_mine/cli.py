@@ -24,7 +24,10 @@ import os
 import pprint
 import re
 import requests
-from simplejson.errors import JSONDecodeError
+try:
+    from simplejson.errors import JSONDecodeError as JSONError
+except ImportError:
+    JSONError = ValueError
 import sys
 
 config_file = '~/.coal-mine.ini'
@@ -231,7 +234,7 @@ def call(command, args, payload=None, action='print'):
             response.status_code, response.reason))
         try:
             sys.exit(pprint.pformat(response.json()).strip())
-        except JSONDecodeError:
+        except JSONError:
             sys.exit(response.text)
     if action == 'print':
         try:
