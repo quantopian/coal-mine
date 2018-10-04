@@ -47,14 +47,10 @@ def doit(args, config_file):
     connect_parser = argparse.ArgumentParser(add_help=False)
     host_default = section.get('host', 'localhost')
     connect_parser.add_argument('--host', action='store',
-                                help="Server host name (default {})".format(
-                                    host_default),
-                                default=host_default)
-    port_default = section.getint('port', 80)
+                                help="Server host name or URL (default {})".
+                                format(host_default), default=host_default)
     connect_parser.add_argument('--port', action='store', type=int,
-                                help='Server port (default {})'.format(
-                                    port_default),
-                                default=port_default)
+                                help='Server port')
     auth_key_group = connect_parser.add_mutually_exclusive_group()
     auth_key_default = section.get('auth-key', None)
     auth_key_group.add_argument('--auth-key', action='store',
@@ -148,6 +144,16 @@ def doit(args, config_file):
     unpause_parser.set_defaults(func=handle_unpause)
 
     args = parser.parse_args(args)
+
+    url = ''
+    if not re.match(r'^https?:', args.host):
+        url += 'http://'
+    url += args.host
+    if args.port:
+        url += ':{}'.format(args.port)
+    url += '/coal-mine/v1/canary/'
+    args.url = url
+
     try:
         if args.no_auth_key:
             args.auth_key = None
@@ -161,7 +167,8 @@ def doit(args, config_file):
 def handle_configure(args):
     section = args.config_parser[config_section]
     section['host'] = args.host
-    section['port'] = str(args.port)
+    if args.port:
+        section['port'] = str(args.port)
     if args.auth_key:
         section['auth-key'] = args.auth_key
     elif args.no_auth_key:
@@ -231,8 +238,7 @@ def handle_unpause(args):
 
 
 def call(command, args, payload=None, action='print', filter=None):
-    url = 'http://{}:{}/coal-mine/v1/canary/{}'.format(
-        args.host, args.port, command)
+    url = args.url + command
     if payload:
         if args.auth_key:
             payload['auth_key'] = args.auth_key
@@ -240,7 +246,7 @@ def call(command, args, payload=None, action='print', filter=None):
         payload = {key: (getattr(args, key) if key == 'email'
                          else str(getattr(args, key)))
                    for key in dir(args)
-                   if key not in ('host', 'port', 'func') and
+                   if key not in ('host', 'port', 'func', 'url') and
                    not key.startswith('_') and
                    getattr(args, key) is not None and
                    not (key == 'email' and getattr(args, key) == [])}

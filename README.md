@@ -217,6 +217,11 @@ settings that it can or must contain:
 2. `cmcli configure [--host server-host-name] [--port server-port]
         [--auth-key key | --no-auth-key]`
 
+The `--host` argument can take a URL base (i.e.,
+`http://server-host-name` or `https://server-host-name`) as well. This
+is useful if, for example, you've put your Coal Mine server behind an
+SSL proxy so the CLI needs to use SSL to connect to it.
+
 The CLI stores its configuration in `~/.coal-mine.ini`. Note that the
 authentication key is stored in plaintext. Any configuration
 parameters the CLI needs that aren't stored in the INI file must be
