@@ -55,7 +55,7 @@ def main():  # pragma: no cover
         else:
             handler = logbook.FileHandler(logfile)
         handler.push_application()
-    except:
+    except Exception:
         logbook.StderrHandler().push_application()
 
     try:
@@ -85,14 +85,14 @@ def main():  # pragma: no cover
     try:
         listen_port = int(config.get('wsgi', 'port'))
         log.info('Binding to port {}'.format(listen_port))
-    except:
+    except Exception:
         listen_port = 80
         log.info('Binding to default port {}'.format(listen_port))
 
     try:
         auth_key = config.get('wsgi', 'auth_key')
         log.info('Server authentication enabled')
-    except:
+    except Exception:
         log.warning('Server authentication DISABLED')
         auth_key = None
 

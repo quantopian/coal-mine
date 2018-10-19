@@ -378,7 +378,7 @@ class BusinessLogic(object):
                               subject,
                               body))
             smtp.quit()
-        except:
+        except Exception:
             log.exception('Notify failed for canary {} ({}, {})'.format(
                 canary['name'], canary['id'], subject))
         else:
@@ -474,7 +474,7 @@ class BusinessLogic(object):
             raise TypeError('malformed periodicity: no newlines allowed')
         try:
             s = CronTabSchedule(periodicity, delimiter=';')
-        except:
+        except Exception:
             raise TypeError('malformed periodicity: must be positive number '
                             'or semicolon-delimited crontab schedule; see '
                             'documentation for more information')
@@ -484,7 +484,7 @@ class BusinessLogic(object):
                 value = float(number_string)
                 if value <= 0:
                     raise Exception()
-            except:
+            except Exception:
                 raise TypeError('malformed periodicity; each crontab schedule '
                                 '"command" must be a positive number')
 

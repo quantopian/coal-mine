@@ -59,11 +59,11 @@ class MongoStore(AbstractStore):
             id_index = existing_indexes['id_1']
             try:
                 is_unique = id_index['unique']
-            except:
+            except Exception:
                 is_unique = False
             if not is_unique:
                 self.collection.drop_index('id_1')
-        except:  # pragma: no cover
+        except Exception:  # pragma: no cover
             pass
 
         self.collection.create_indexes([
