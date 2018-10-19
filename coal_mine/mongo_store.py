@@ -142,7 +142,8 @@ class MongoStore(AbstractStore):
 
         if search is not None:
             search = re.compile(search)
-            spec['$or'] = [{'name': search}, {'slug': search}, {'id': search}]
+            spec['$or'] = [{'name': search}, {'slug': search}, {'id': search},
+                           {'emails': search}]
 
         skip = 0
 

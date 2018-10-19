@@ -129,7 +129,7 @@ def doit(args, config_file):
                             action='store_false', default=None)
     list_parser.add_argument('--search', action='store', default=None,
                              help='Regular expression to match against name, '
-                             'slug, and identifier')
+                             'slug, identifier, and email addresses')
     list_parser.set_defaults(func=handle_list)
 
     trigger_parser = subparsers.add_parser('trigger', help='Trigger canary',
