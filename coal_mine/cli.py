@@ -99,6 +99,8 @@ def doit(args, config_file):
     update_parser_group = update_parser.add_mutually_exclusive_group()
     update_parser_group.add_argument('--slug', action='store')
     update_parser_group.add_argument('--id', action='store')
+    update_parser.add_argument('--no-history', '--terse', action='store_true',
+                               help='Omit history in output')
     update_parser.add_argument('--periodicity', action='store',
                                type=periodicity)
     update_parser.add_argument('--description', action='store')
@@ -115,6 +117,8 @@ def doit(args, config_file):
     list_parser = subparsers.add_parser('list', help='List canaries',
                                         parents=[connect_parser])
     list_parser.add_argument('--verbose', action='store_true', default=None)
+    list_parser.add_argument('--no-history', '--terse', action='store_true',
+                             help='Omit history in output')
     paused_group = list_parser.add_mutually_exclusive_group()
     paused_group.add_argument('--paused', action='store_true', default=None)
     paused_group.add_argument('--no-paused', dest='paused',
@@ -135,11 +139,15 @@ def doit(args, config_file):
 
     pause_parser = subparsers.add_parser('pause', help='Pause canary',
                                          parents=[connect_parser, id_parser])
+    pause_parser.add_argument('--no-history', '--terse', action='store_true',
+                              help='Omit history in output')
     pause_parser.add_argument('--comment', action='store')
     pause_parser.set_defaults(func=handle_pause)
 
     unpause_parser = subparsers.add_parser('unpause', help='Unpause canary',
                                            parents=[connect_parser, id_parser])
+    unpause_parser.add_argument('--no-history', '--terse', action='store_true',
+                                help='Omit history in output')
     unpause_parser.add_argument('--comment', action='store')
     unpause_parser.set_defaults(func=handle_unpause)
 
@@ -185,6 +193,19 @@ def handle_delete(args):
     call('delete', args)
 
 
+def get_no_history_filter(d):
+    if 'canary' in d:
+        d = copy.deepcopy(d)
+        del d['canary']['history']
+        return d
+    if 'canaries' in d:
+        d = copy.deepcopy(d)
+        for canary in d['canaries']:
+            del canary['history']
+        return d
+    return d
+
+
 def handle_update(args):
     if not (args.name or args.id or args.slug):
         sys.exit('Must specify --name, --id, or --slug')
@@ -192,16 +213,11 @@ def handle_update(args):
         found = call('get', args, {'name': args.name}, action='return')
         del args.name
         args.id = found['canary']['id']
-    call('update', args)
-
-
-def get_no_history_filter(d):
-    d = copy.deepcopy(d)
-    try:
-        del d['canary']['history']
-    except KeyError:
-        pass
-    return d
+    if vars(args).pop('no_history', None):
+        filter = get_no_history_filter
+    else:
+        filter = None
+    call('update', args, filter=filter)
 
 
 def handle_get(args):
@@ -219,7 +235,11 @@ def handle_list(args):
         del args.late
     if args.search is None:
         del args.search
-    call('list', args)
+    if vars(args).pop('no_history', None):
+        filter = get_no_history_filter
+    else:
+        filter = None
+    call('list', args, filter=filter)
 
 
 def handle_trigger(args):
@@ -228,13 +248,19 @@ def handle_trigger(args):
 
 
 def handle_pause(args):
-    call('pause', args)
-    pass
+    if vars(args).pop('no_history', None):
+        filter = get_no_history_filter
+    else:
+        filter = None
+    call('pause', args, filter=filter)
 
 
 def handle_unpause(args):
-    call('unpause', args)
-    pass
+    if vars(args).pop('no_history', None):
+        filter = get_no_history_filter
+    else:
+        filter = None
+    call('unpause', args, filter=filter)
 
 
 def call(command, args, payload=None, action='print', filter=None):
