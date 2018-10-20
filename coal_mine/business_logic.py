@@ -52,6 +52,8 @@ class BusinessLogic(object):
     def __init__(self, store, email_sender):
         self.store = store
         self.email_sender = email_sender
+        self.current_alarm = None
+        signal.signal(signal.SIGALRM, self.deadline_handler)
 
     def create(self, name, periodicity, description=None, emails=[],
                paused=False):
@@ -390,16 +392,33 @@ class BusinessLogic(object):
             try:
                 canary = next(self.store.upcoming_deadlines())
             except StopIteration:
+                self.current_alarm = None
                 return
+
         when = max(1, (canary['deadline'] - datetime.datetime.utcnow()).
                    total_seconds())
 
-        log.info('Setting alarm for canary {} ({}) at {}'.format(
-            canary['name'], canary['id'], str(canary['deadline'])))
-        signal.signal(signal.SIGALRM, self.deadline_handler)
         signal.alarm(int(math.ceil(when)))
+        # It might seem as if the signal.alarm call above is redundant and
+        # unnecessary if `self.current_alarm == canary['deadline']`. I.e., it
+        # might seem as if it could be put in the body of the `if` statement
+        # below. And yes, that would be true in an ideal world where everything
+        # works properly. However, we do not live in an ideal world, but rather
+        # in a world where all sorts of bizarre stuff goes unexpectedly wrong
+        # in computer programs. Therefore, I'm being truly paranoid here and
+        # "refreshing" the alarm signal every time a canary gets triggered,
+        # just in case it got "lost" somehow. The call to `signal.alarm()` is
+        # incredibly cheap, so there's very little cost for this paranoia.
+        # However, what is more expensive is the "Setting alarm for canary ..."
+        # log noise that appears over and over for the same darn alarm, so I'm
+        # only logging that message when the next alarm changes.
+        if self.current_alarm != canary['deadline']:
+            log.info('Setting alarm for canary {} ({}) at {}'.format(
+                canary['name'], canary['id'], str(canary['deadline'])))
+            self.current_alarm = canary['deadline']
 
     def deadline_handler(self, signum, frame):
+        self.current_alarm = None
         now = datetime.datetime.utcnow()
 
         for canary in self.store.upcoming_deadlines():
