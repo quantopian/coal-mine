@@ -49,8 +49,9 @@ def doit(args, config_file):
     connect_parser.add_argument('--host', action='store',
                                 help="Server host name or URL (default {})".
                                 format(host_default), default=host_default)
+    port_default = section.get('port', None)
     connect_parser.add_argument('--port', action='store', type=int,
-                                help='Server port')
+                                help='Server port', default=port_default)
     auth_key_group = connect_parser.add_mutually_exclusive_group()
     auth_key_default = section.get('auth-key', None)
     auth_key_group.add_argument('--auth-key', action='store',
