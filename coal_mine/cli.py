@@ -154,6 +154,9 @@ def doit(args, config_file):
 
     args = parser.parse_args(args)
 
+    if 'func' not in args:
+        parser.error("No command specified")
+
     url = ''
     if not re.match(r'^https?:', args.host):
         url += 'http://'
@@ -163,14 +166,11 @@ def doit(args, config_file):
     url += '/coal-mine/v1/canary/'
     args.url = url
 
-    try:
-        if args.no_auth_key:
-            args.auth_key = None
-        if args.func is not handle_configure:
-            del args.no_auth_key
-        args.func(args)
-    except AttributeError:
-        parser.error("No command specified")
+    if args.no_auth_key:
+        args.auth_key = None
+    if args.func is not handle_configure:
+        del args.no_auth_key
+    args.func(args)
 
 
 def handle_configure(args):
@@ -291,7 +291,7 @@ def call(command, args, payload=None, action='print', filter=None):
             if filter:
                 content = filter(content)
             pprint.pprint(content)
-        except BrokenPipeError:
+        except BrokenPipeError:  # pragma: no cover
             pass
     elif action == 'return':
         return response.json()

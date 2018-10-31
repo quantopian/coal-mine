@@ -25,19 +25,34 @@ from unittest.mock import patch
 
 def add_response(query, method=responses.GET, host='localhost', port=80,
                  body='{"status": "ok"}', status=200):
-    responses.add(
-        method,
-        'http://{}:{}/coal-mine/v1/canary/{}'.format(host, port, query),
-        body=body, match_querystring=True, status=status)
+    port = '' if port == 80 else ':{}'.format(port)
+    url = 'http://{}{}/coal-mine/v1/canary/{}'.format(host, port, query)
+    responses.add(method, url, body=body, match_querystring=True,
+                  status=status)
 
 
 class CLITests(TestCase):
+    get_body = '{"status": "ok", "canary": {"history": []}}'
+    list_body = '{"status": "ok", "canaries": [{"history": []}]}'
+    pause_body = '{"status": "ok", "canary": {"paused": true, "history": []}}'
+    unpause_body = \
+        '{"status": "ok", "canary": {"paused": false, "history": []}}'
+
     @responses.activate
     def test_configure(self):
         host = 'hellohost'
         port = '12345'
         auth_key = 'arglebargle'
         with tempfile.NamedTemporaryFile(delete=False) as tf:
+            cli.doit(('configure', '--host', host, '--auth-key', auth_key),
+                     tf.name)
+            config = SafeConfigParser()
+            config.read([tf.name])
+            self.assertEqual(host, config['coal-mine']['host'])
+            with self.assertRaises(KeyError):
+                config['coal-mine']['port']
+            self.assertEqual(auth_key, config['coal-mine']['auth-key'])
+
             cli.doit(('configure', '--host', host, '--port', port,
                       '--auth-key', auth_key), tf.name)
             config = SafeConfigParser()
@@ -125,17 +140,41 @@ class CLITests(TestCase):
 
     @responses.activate
     def test_get(self):
-        add_response('get?name=froodle')
-        cli.doit(('get', '--name', 'froodle'), '/dev/null')
+        add_response('get?name=froodle', body=self.get_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('get', '--name', 'froodle'), '/dev/null')
+            self.assertIn("{'history': []}", sys.stdout.getvalue())
+
+    @responses.activate
+    def test_get_no_history(self):
+        add_response('get?name=froodle', body=self.get_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('get', '--no-history', '--name', 'froodle'), '/dev/null')
+            self.assertNotIn("{'history': []}", sys.stdout.getvalue())
 
     @responses.activate
     def test_list(self):
         add_response('list')
         cli.doit(('list',), '/dev/null')
 
-        add_response('list?search=foo&late=True&paused=True')
-        cli.doit(('list', '--paused', '--late', '--search', 'foo'),
-                 '/dev/null')
+        add_response('list?search=foo&late=True&paused=True&verbose=True',
+                     body=self.list_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('list', '--verbose', '--paused', '--late', '--search',
+                      'foo'), '/dev/null')
+            self.assertIn("{'history': []}", sys.stdout.getvalue())
+
+    @responses.activate
+    def test_list_no_history(self):
+        add_response('list')
+        cli.doit(('list',), '/dev/null')
+
+        add_response('list?search=foo&late=True&paused=True&verbose=True',
+                     body=self.list_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('list', '--verbose', '--no-history', '--paused',
+                      '--late', '--search', 'foo'), '/dev/null')
+            self.assertNotIn("{'history': []}", sys.stdout.getvalue())
 
     @responses.activate
     def test_trigger(self):
@@ -144,13 +183,33 @@ class CLITests(TestCase):
 
     @responses.activate
     def test_pause(self):
-        add_response('pause?name=froodle')
-        cli.doit(('pause', '--name', 'froodle'), '/dev/null')
+        add_response('pause?name=froodle', body=self.pause_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('pause', '--name', 'froodle'), '/dev/null')
+            self.assertIn("'history': []", sys.stdout.getvalue())
+
+    @responses.activate
+    def test_pause_no_history(self):
+        add_response('pause?name=froodle', body=self.pause_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('pause', '--no-history', '--name', 'froodle'),
+                     '/dev/null')
+            self.assertNotIn("'history': []", sys.stdout.getvalue())
 
     @responses.activate
     def test_unpause(self):
-        add_response('unpause?name=froodle')
-        cli.doit(('unpause', '--name', 'froodle'), '/dev/null')
+        add_response('unpause?name=froodle', body=self.unpause_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('unpause', '--name', 'froodle'), '/dev/null')
+            self.assertIn("'history': []", sys.stdout.getvalue())
+
+    @responses.activate
+    def test_unpause_no_history(self):
+        add_response('unpause?name=froodle', body=self.unpause_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('unpause', '--no-history', '--name', 'froodle'),
+                     '/dev/null')
+            self.assertNotIn("'history': []", sys.stdout.getvalue())
 
     @responses.activate
     def test_bad_response(self):
