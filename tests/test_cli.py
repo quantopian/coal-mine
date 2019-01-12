@@ -37,6 +37,22 @@ class CLITests(TestCase):
     pause_body = '{"status": "ok", "canary": {"paused": true, "history": []}}'
     unpause_body = \
         '{"status": "ok", "canary": {"paused": false, "history": []}}'
+    update_body = '{"status": "ok", "canary": {"history": []}}'
+
+    def test_parse_args(self):
+        hostname = 'hellohost'
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            args = cli.parse_args(('configure', '--host', hostname),
+                                  tf.name)
+            self.assertEqual(args.host, hostname)
+            self.assertEqual(args.url, 'http://{}/coal-mine/v1/canary/'.format(
+                hostname))
+            hostname = 'https://' + hostname
+            args = cli.parse_args(('configure', '--host', hostname),
+                                  tf.name)
+            self.assertEqual(args.host, hostname)
+            self.assertEqual(args.url, '{}/coal-mine/v1/canary/'.format(
+                hostname))
 
     @responses.activate
     def test_configure(self):
@@ -119,24 +135,39 @@ class CLITests(TestCase):
                 r'Must specify --name, --id, or --slug'):
             cli.doit(('update', '--periodicity', '120'), '/dev/null')
 
-        add_response('update?id=abcdefgh&name=freedle')
+        add_response('update?id=abcdefgh&name=freedle', body=self.update_body)
         cli.doit(('update', '--id', 'abcdefgh', '--name', 'freedle'),
                  '/dev/null')
 
         add_response('get?name=froodle&auth_key=arglebargle',
                      body='{"status": "ok", "canary": {"id": "bcdefghi"}}')
         add_response('update?description=foodesc&id=bcdefghi&'
-                     'auth_key=arglebargle')
+                     'auth_key=arglebargle', body=self.update_body)
         cli.doit(('update', '--name', 'froodle', '--description', 'foodesc',
                   '--auth-key', 'arglebargle'),
                  '/dev/null')
 
-        # Same as above but without --auth-key, for code branch coverage
+        # Same as above but without --auth-key, for code branch coverage,
+        # and with history test added.
         add_response('get?name=froodle',
                      body='{"status": "ok", "canary": {"id": "bcdefghi"}}')
-        add_response('update?description=foodesc&id=bcdefghi')
-        cli.doit(('update', '--name', 'froodle', '--description', 'foodesc'),
-                 '/dev/null')
+        add_response('update?description=foodesc&id=bcdefghi',
+                     body=self.update_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('update', '--name', 'froodle', '--description',
+                      'foodesc'), '/dev/null')
+            self.assertIn("{'history': []}", sys.stdout.getvalue())
+
+    @responses.activate
+    def test_update_no_history(self):
+        add_response('get?name=froodle',
+                     body='{"status": "ok", "canary": {"id": "bcdefghi"}}')
+        add_response('update?description=foodesc&id=bcdefghi',
+                     body=self.update_body)
+        with patch('sys.stdout', StringIO()):
+            cli.doit(('update', '--name', 'froodle', '--description',
+                      'foodesc', '--no-history'), '/dev/null')
+            self.assertNotIn("{'history': []}", sys.stdout.getvalue())
 
     @responses.activate
     def test_get(self):

@@ -35,7 +35,7 @@ config_file = '~/.coal-mine.ini'
 config_section = 'coal-mine'
 
 
-def doit(args, config_file):
+def parse_args(args, config_file):
     config = SafeConfigParser()
     config.read([config_file])
     try:
@@ -170,6 +170,12 @@ def doit(args, config_file):
         args.auth_key = None
     if args.func is not handle_configure:
         del args.no_auth_key
+
+    return args
+
+
+def doit(args, config_file):
+    args = parse_args(args, config_file)
     args.func(args)
 
 
@@ -199,12 +205,12 @@ def get_no_history_filter(d):
         d = copy.deepcopy(d)
         del d['canary']['history']
         return d
-    if 'canaries' in d:
+    if 'canaries' in d:  # pragma: no cover (should always be true)
         d = copy.deepcopy(d)
         for canary in d['canaries']:
             del canary['history']
         return d
-    return d
+    return d  # pragma: no cover
 
 
 def handle_update(args):
