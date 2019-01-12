@@ -14,7 +14,7 @@
 
 from coal_mine.crontab_schedule import \
     CronTabSchedule, CronTabScheduleException, FastCronTab
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 from unittest import TestCase
 
@@ -65,8 +65,7 @@ DYNAMIC_EXPECTED = [
     (datetime(2015, 1, 1, 22, 0), datetime(2015, 1, 2, 13, 29), '300'),
     (datetime(2015, 1, 2, 13, 30), datetime(2015, 1, 2, 21, 59), '90'),
     (datetime(2015, 1, 2, 22, 0), datetime(2015, 1, 2, 23, 59), '300'),
-    (datetime(2015, 1, 3, 0, 0), datetime(2015, 1, 3, 23, 59), None),
-    (datetime(2015, 1, 4, 0, 0), datetime(2015, 1, 5, 13, 29), '300')
+    (datetime(2015, 1, 3, 0, 0), datetime(2015, 1, 3, 23, 59), None)
 ]
 
 MULTI_EXPECTED = [
@@ -77,6 +76,8 @@ MULTI_EXPECTED = [
 
 
 class CronTabScheduleTests(TestCase):
+    maxDiff = None
+
     def test_init(self):
         s = CronTabSchedule(SCHEDULE)
         self.assertEqual(len(s.entries), 5)
@@ -131,16 +132,6 @@ class CronTabScheduleTests(TestCase):
         with self.assertRaises(CronTabScheduleException):
             CronTabSchedule('* * *')
 
-    def test_next_active(self):
-        s = CronTabSchedule(SCHEDULE)
-        s.next_active(datetime.now().replace(second=25))
-        s.next_active(datetime.now().replace(second=0, microsecond=0))
-
-    def test_next_active_no_schedule(self):
-        s = CronTabSchedule('')
-        with self.assertRaises(CronTabScheduleException):
-            s.next_active()
-
     def test_delimiter(self):
         # Paranoia: Make sure we're actually testing what we think
         # we're testing, by ensuring that the original schedule had
@@ -153,6 +144,33 @@ class CronTabScheduleTests(TestCase):
             start=datetime(2015, 1, 1),
             multi=False)]
         self.assertEqual(slots, DYNAMIC_EXPECTED)
+
+    def test_no_schedule(self):
+        s = CronTabSchedule('')
+        with self.assertRaises(CronTabScheduleException):
+            s.soonest()
+
+    def test_soonest_no_now(self):
+        s = CronTabSchedule('* * * * * foo\n* * * * * bar')
+        now = datetime.now()
+        if not now.second:
+            time.sleep(1)
+            now = datetime.now()
+        nxt = s.soonest()
+        self.assertEqual(nxt, now + timedelta(
+            seconds=60 - now.second - now.microsecond / 1000000))
+
+    def test_soonest_with_seconds(self):
+        s = CronTabSchedule('* * * * * foo')
+        now = datetime(2015, 1, 1, 1, 1, 1, 1)
+        nxt = s.soonest(now=now)
+        self.assertEqual(nxt, datetime(2015, 1, 1, 1, 2))
+
+    def test_soonest_backtrack_needed(self):
+        s = CronTabSchedule('* * * * * foo')
+        now = datetime(2015, 1, 1)
+        nxt = s.soonest(now=now)
+        self.assertEqual(now, nxt)
 
     def test_FastCronTab_default_now(self):
         e = FastCronTab('* * * * *')
@@ -169,3 +187,10 @@ class CronTabScheduleTests(TestCase):
         e = FastCronTab('* * * * *')
         self.assertNotEqual(e.next(default_utc=False),
                             e.next(default_utc=True))
+
+    def test_FastCronTab_default_utc_unspecified(self):
+        e = FastCronTab('*/5 * * * *')
+        now = datetime.now()
+        first = e.next(now)
+        second = e.next(now + timedelta(seconds=first + 1), default_utc=False)
+        self.assertEqual(second, 299.0)

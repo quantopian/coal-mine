@@ -16,6 +16,9 @@ from crontab import CronTab
 from datetime import datetime, timedelta
 
 ONE_MINUTE = timedelta(minutes=1)
+ONE_HOUR = timedelta(hours=1)
+ONE_DAY = timedelta(days=1)
+LIKE_FOREVER = timedelta(days=31)
 
 
 class CronTabScheduleException(Exception):
@@ -25,12 +28,16 @@ class CronTabScheduleException(Exception):
 class FastCronTab(CronTab):
     def __init__(self, *args, **kwargs):
         super(FastCronTab, self).__init__(*args, **kwargs)
+        # Degenerate case where CronTab is much too slow
+        self.every_minute = args[0] == '* * * * *'
         self.cached_now = None
         self.cached_next = None
 
     def next(self, now=None, *args, **kwargs):
         if now is None:
             now = datetime.now()
+        if self.every_minute:
+            return 60.0 - now.second - now.microsecond / 1000000
         if self.cached_now is not None and now > self.cached_now and \
            now < self.cached_now + self.cached_next:
             self.cached_next -= now - self.cached_now
@@ -72,25 +79,49 @@ class CronTabSchedule(object):
         self.entries = []
         entry_lines = [s for s in (s.strip() for s in crontab.split(delimiter))
                        if s and s[0] != '#']
+        self.smallest_change_gap = None
         for line in entry_lines:
             self.add_entry(line)
 
     def __len__(self):
         return len(self.entries)
 
+    def check(self):
+        if not self.entries:
+            raise CronTabScheduleException('Schedule has no entries')
+
     def add_entry(self, entry_line):
-        """Internal function."""
+        """Add an entry to the schedule
+
+        Can be used to build a schedule incrementally rather than all in one
+        shot when the object is created."""
+
         fields = entry_line.split(None, 5)
         if len(fields) < 6:
             raise CronTabScheduleException(
                 '{} does not have six fields'.format(entry_line))
+
+        if fields[0] != '*':
+            gap = ONE_MINUTE
+        elif fields[1] != '*':
+            gap = ONE_HOUR
+        elif fields[2] == '*' and fields[3] == '*' and fields[4] == '*':
+            gap = LIKE_FOREVER
+        else:
+            gap = ONE_DAY
+
+        if self.smallest_change_gap is None:
+            self.smallest_change_gap = gap
+        else:
+            self.smallest_change_gap = min(self.smallest_change_gap, gap)
+
         e = FastCronTab(' '.join(fields[0:5]))
         self.entries.append((e, fields[5]))
 
     def next_minute(self, now=None, multi=True):
         """Get the entry / entries active in the following minute.
 
-        Kwrgs:
+        Kwargs:
             now (datetime.datetime): The minute *before* the minute whose
                 active entries you want. Defaults to the beginning of the
                 current minute.
@@ -106,6 +137,7 @@ class CronTabSchedule(object):
             CronTabScheduleException, if `multi` is False and more than one
             entry is active in the following minute.
         """
+        self.check()
         if now is None:
             now = datetime.now().replace(second=0, microsecond=0)
         elif now.second or now.microsecond:
@@ -121,37 +153,32 @@ class CronTabSchedule(object):
                 'Multiple schedule matches at {}'.format(now + ONE_MINUTE))
         return matches[0] if not multi else matches
 
-    def next_active(self, now=None, multi=True):
-        """Returns the next active schedule(s) on or after now.
-
-        Kwargs:
-            now (datetime.datetime): Defaults to the beginning of the current
-                minute.
-            multi (bool): Whether to allow multiple entries to be active in the
-                same minute. Defaults to True.
-
-        Returns:
-            A tuple of a datetime indicating when the returned entry/ies are
-            next active, and either a single entry index if `multi` is false,
-            or a list of entry indexes.
-
-        Raises:
-            CronTabScheduleException, if `multi` is False and more than one
-            entry is active in the following minute.
-        """
+    def soonest(self, now=None):
+        """The datetime of the soonest active schedule on or after now"""
+        self.check()
         if now is None:
-            now = datetime.now().replace(second=0, microsecond=0)
-        elif now.second or now.microsecond:
-            now = now.replace(second=0, microsecond=0)
-        now -= ONE_MINUTE
-        end = now + timedelta(days=366)
-        while now < end:
-            matches = self.next_minute(now=now, multi=multi)
-            if matches is not None:
-                return (now + ONE_MINUTE, matches)
-            now += ONE_MINUTE
-        raise CronTabScheduleException(
-            'No active schedule matches in the year preceding {}'.format(end))
+            now = datetime.now()
+        if not (now.second or now.microsecond):
+            now -= ONE_MINUTE
+        soonest = self.entries[0][0].next(now)
+        for entry in self.entries[1:]:
+            soonest = min(soonest, entry[0].next(now))
+        return now + timedelta(seconds=soonest)
+
+    def round_up(self, now):
+        self.check()
+        if self.smallest_change_gap == ONE_MINUTE:
+            return now
+        if self.smallest_change_gap == LIKE_FOREVER:
+            return now + LIKE_FOREVER
+        if self.smallest_change_gap == ONE_HOUR:
+            return now + timedelta(minutes=60 - now.minute)
+        if self.smallest_change_gap == ONE_DAY:
+            return now + timedelta(hours=24 - now.hour) - \
+                timedelta(minutes=now.minute)
+        raise CronTabScheduleException(  # pragma: no cover
+            'Unrecognized smallest change gap {}'.format(
+                self.smallest_change_gap))
 
     def key_of(self, entry):
         """Returns the key for an entry.
@@ -166,6 +193,10 @@ class CronTabSchedule(object):
         """
         return self.entries[entry][1] if entry is not None else None
 
+    @staticmethod
+    def fix_key(key, multi):
+        return key[0] if not multi or key[0] is None else key
+
     def schedule_iter(self, start=None, end=None, multi=True, endless=False):
         """Iterate through time ranges and their active entries.
 
@@ -175,8 +206,9 @@ class CronTabSchedule(object):
             end (datetime.datetime): End of time range to schedule. Defaults to
                 scheduling until all entries have been used at least once.
             multi: See `next_active`.
-            endless: Yield forever, not for only a year. It is an error to
-                to both set this to True and specify a value for `end`.
+            endless: Yield forever, not only until all schedule entries are
+                used. It is an error to to both set this to True and specify a
+                value for `end`.
 
         Returns:
             An iterator which yields tuples of (range start, range end, active
@@ -188,6 +220,28 @@ class CronTabSchedule(object):
         Raises:
             See `next`.
         """
+        # Strategy:
+        #
+        # Get the active entries for the start time.
+        #
+        # Set the next start time to the start time rounded up to the next
+        # possible change time.
+        #
+        # Loop:
+        #
+        #   Get the active entries for the next start time.
+        #
+        #   If they are different, then:
+        #
+        #     Yield the start time, a minute _before_ the next start time, and
+        #     the old active entries.
+        #
+        #     Set our start time equal to the next start time.
+        #
+        #     Set active entries equal to the new active entries.
+        #
+        #   Add the smallest change gap to the next start time.
+        self.check()
         if start is None:
             start = datetime.now().replace(
                 hour=0, minute=0, second=0, microsecond=0)
@@ -201,36 +255,43 @@ class CronTabSchedule(object):
             end = end.replace(second=0, microsecond=0)
             hard_stop = True
         used_rules = set()
-        num_rules = len(self.entries)
-        current_start = current_end = start
-        new_entries = self.next_minute(start - ONE_MINUTE, multi)
-        if not multi or new_entries is None:
-            new_entries = [new_entries]
-        current_key = tuple(self.key_of(e) for e in new_entries)
         current_rules = set()
+        num_rules = len(self.entries)
+        current_start = start
+        current_entries = self.next_minute(current_start - ONE_MINUTE, multi)
+        if not multi or current_entries is None:
+            current_entries = [current_entries]
+        if current_entries != [None]:
+            current_rules.update(current_entries)
+        current_key = tuple(sorted(set(
+            self.key_of(e) for e in current_entries)))
+
+        next_start = self.round_up(current_start)
         while (not hard_stop and (endless or len(used_rules) < num_rules)) or \
-              (hard_stop and current_end < end):
-            new_entries = self.next_minute(current_end, multi)
+              (hard_stop and next_start < end):
+            new_entries = self.next_minute(next_start - ONE_MINUTE, multi)
             if not multi or new_entries is None:
                 new_entries = [new_entries]
-            new_key = tuple(self.key_of(e) for e in new_entries)
-            # The second half of this boolean is a safety valve for the
-            # degenerate case of there being only one schedule entry active all
-            # the time ("* * * * * periodicity").
+            new_key = tuple(sorted(set(
+                self.key_of(e) for e in new_entries)))
             if new_key != current_key or \
-               current_end - current_start > timedelta(days=31):
-                if not multi or current_key[0] is None:
-                    current_key = current_key[0]
-                yield (current_start, current_end, current_key)
-                current_start = current_end = current_end + ONE_MINUTE
-                current_key = new_key
+               self.smallest_change_gap == LIKE_FOREVER:
+                yield(current_start, next_start - ONE_MINUTE,
+                      self.fix_key(current_key, multi))
                 used_rules.update(current_rules)
-                current_rules.clear()
-            else:
-                current_end = current_end + ONE_MINUTE
-            if new_entries != [None]:
+                current_rules = set(new_entries)
+                current_start = next_start
+                current_entries = new_entries
+                current_key = new_key
+            elif new_entries != [None]:
                 current_rules.update(new_entries)
-        if current_end > current_start:
-            if not multi or current_key[0] is None:
-                current_key = current_key[0]
-            yield (current_start, current_end, current_key)
+
+            next_start += self.smallest_change_gap
+        if not hard_stop:
+            return
+        # Even though our unit tests _do_ have cases where this if condition is
+        # false and true, for some reason the coverage analyzer is claiming
+        # otherwise. I can't figure out how to convince it that both branches
+        # are executed, so I'm just exluding it from coverage analysis.
+        if current_start < end:  # pragma: no cover
+            yield(current_start, end, self.fix_key(current_key, multi))
