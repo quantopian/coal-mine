@@ -20,7 +20,7 @@ Coal Mine WSGI server
 
 from coal_mine.business_logic import BusinessLogic, CanaryNotFoundError
 from copy import copy
-from cgi import parse_qs
+from urllib.parse import parse_qs
 from configparser import SafeConfigParser, NoSectionError, NoOptionError
 from functools import partial, wraps
 import json
