@@ -141,7 +141,7 @@ class CronTabSchedule(object):
         if now is None:
             now = datetime.now().replace(second=0, microsecond=0)
         elif now.second or now.microsecond:
-                now = now.replace(second=0, microsecond=0)
+            now = now.replace(second=0, microsecond=0)
         matches = []
         for i in range(len(self.entries)):
             if self.entries[i][0].next(now) == 60:

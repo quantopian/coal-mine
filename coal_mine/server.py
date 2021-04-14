@@ -20,7 +20,6 @@ Coal Mine WSGI server
 
 from coal_mine.business_logic import BusinessLogic, CanaryNotFoundError
 from copy import copy
-from cgi import parse_qs
 from configparser import SafeConfigParser, NoSectionError, NoOptionError
 from functools import partial, wraps
 import json
@@ -31,6 +30,13 @@ import re
 import socket
 import sys
 from wsgiref.simple_server import make_server, WSGIRequestHandler
+
+try:
+    # Python 3.8+
+    from urllib.parse import parse_qs
+except ImportError:  # pragma: no cover
+    from cgi import parse_qs
+
 
 config_file = 'coal-mine.ini'
 url_prefix = '/coal-mine/v1/canary/'
