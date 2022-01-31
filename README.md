@@ -200,7 +200,7 @@ settings that it can or must contain:
     authentication is required
   * replicaSet -- must be specified if using a replicaset
   * other arguments will be passed through to MongoClient
-     * for example, ssl\_cert\_reqs can can be set to "NONE", "OPTIONAL", or "REQUIRED"
+     * for example, tls can be set to True or False
   
 * \[email\] -- required
   * sender -- email address to put in the From line of notification

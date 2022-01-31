@@ -1,4 +1,5 @@
 # Copyright 2016 Quantopian, Inc.
+# Copyright 2022 Jonathan Kamens
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you
 # may not use this file except in compliance with the License.  You
@@ -32,13 +33,6 @@ class MongoStoreInitTests(TestCase):
     def test_basic_init(self):
         MongoStore(self.db_hosts, self.db_name, None, None)
         pass
-
-    def test_init_ssl_cert_reqs(self):
-        MongoStore(self.db_hosts, self.db_name, None, None,
-                   ssl_cert_reqs='NONE')
-        with self.assertRaises(TypeError):
-            MongoStore(self.db_hosts, self.db_name, None, None,
-                       ssl_cert_reqs='FROODLE')
 
     def test_init_auth(self):
         with self.assertRaises(OperationFailure):
