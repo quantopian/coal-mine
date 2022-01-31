@@ -1,4 +1,5 @@
 # Copyright 2015 Quantopian, Inc.
+# Copyright 2022 Jonathan Kamens
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you
 # may not use this file except in compliance with the License.  You
@@ -23,7 +24,6 @@ from logbook import Logger
 from pymongo import MongoClient, IndexModel, ASCENDING
 from pymongo.errors import AutoReconnect
 import re
-import ssl
 import time
 
 log = Logger('MongoStore')
@@ -34,20 +34,11 @@ class MongoStore(AbstractStore):
         """Keyword arguments are the same as what would be passed to
         MongoClient."""
 
-        if 'ssl_cert_reqs' in kwargs:
-            if kwargs['ssl_cert_reqs'] == 'NONE':
-                kwargs['ssl_cert_reqs'] = ssl.CERT_NONE
-            elif kwargs['ssl_cert_reqs'] == 'OPTIONAL':  # pragma: no cover
-                kwargs['ssl_cert_reqs'] = ssl.CERT_OPTIONAL
-            elif kwargs['ssl_cert_reqs'] == 'REQUIRED':  # pragma: no cover
-                kwargs['ssl_cert_reqs'] = ssl.CERT_REQUIRED
-            else:
-                raise TypeError('ssl_cert_reqs must be NONE, OPTIONAL, or '
-                                'REQUIRED')
+        if username or password:
+            kwargs['username'] = username
+            kwargs['password'] = password
         connection = MongoClient(hosts, **kwargs)
         db = connection[database]
-        if username or password:
-            db.authenticate(username, password)
         self.db = db
         self.collection = self.db['canaries']
 
@@ -164,8 +155,8 @@ class MongoStore(AbstractStore):
     def delete(self, identifier):
         while True:
             try:
-                result = self.collection.remove({'id': identifier})
-                if result['n'] == 0:
+                result = self.collection.delete_one({'id': identifier})
+                if result.deleted_count == 0:
                     raise KeyError('No such canary {}'.format(identifier))
                 return
             except AutoReconnect:  # pragma: no cover

@@ -21,8 +21,8 @@ class lazy_convert(object):
         self.kwargs = kwargs
 
     def __str__(self):
-        from pypandoc import convert
-        return str(convert(*self.args, **self.kwargs))
+        from pypandoc import convert_file
+        return str(convert_file(*self.args, **self.kwargs))
 
     def __repr__(self):
         return repr(str(self))
@@ -36,7 +36,7 @@ class lazy_convert(object):
 
 setup(
     name="coal_mine",
-    version='0.5.0',
+    version='0.5.1',
     author='Quantopian Inc.',
     author_email='opensource@quantopian.com',
     description="Coal Mine - Periodic task execution monitor",
