@@ -13,7 +13,7 @@
 # permissions and limitations under the License.
 
 from coal_mine import cli
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 from io import StringIO
 import responses
 import subprocess
@@ -26,9 +26,15 @@ from unittest.mock import patch
 def add_response(query, method=responses.GET, host='localhost', port=80,
                  body='{"status": "ok"}', status=200):
     port = '' if port == 80 else ':{}'.format(port)
-    url = 'http://{}{}/coal-mine/v1/canary/{}'.format(host, port, query)
-    responses.add(method, url, body=body, match_querystring=True,
-                  status=status)
+    full_url = 'http://{}{}/coal-mine/v1/canary/{}'.format(host, port, query)
+    try:
+        base_url, query_string = full_url.split('?')
+    except ValueError:
+        base_url = full_url
+        query_string = ''
+    responses.add(
+        method, base_url, body=body, status=status,
+        match=[responses.matchers.query_string_matcher(query_string)])
 
 
 class CLITests(TestCase):
@@ -62,7 +68,7 @@ class CLITests(TestCase):
         with tempfile.NamedTemporaryFile(delete=False) as tf:
             cli.doit(('configure', '--host', host, '--auth-key', auth_key),
                      tf.name)
-            config = SafeConfigParser()
+            config = ConfigParser()
             config.read([tf.name])
             self.assertEqual(host, config['coal-mine']['host'])
             with self.assertRaises(KeyError):
@@ -71,7 +77,7 @@ class CLITests(TestCase):
 
             cli.doit(('configure', '--host', host, '--port', port,
                       '--auth-key', auth_key), tf.name)
-            config = SafeConfigParser()
+            config = ConfigParser()
             config.read([tf.name])
             self.assertEqual(host, config['coal-mine']['host'])
             self.assertEqual(port, config['coal-mine']['port'])
@@ -82,7 +88,7 @@ class CLITests(TestCase):
             cli.doit(('pause', '--name', 'froodle'), tf.name)
 
             cli.doit(('configure', '--no-auth-key'), tf.name)
-            config = SafeConfigParser()
+            config = ConfigParser()
             config.read([tf.name])
             with self.assertRaises(KeyError):
                 self.assertEqual(auth_key, config['coal-mine']['auth-key'])
@@ -91,7 +97,7 @@ class CLITests(TestCase):
             cli.doit(('pause', '--name', 'froodle'), tf.name)
 
             cli.doit(('configure', '--host', host + '2'), tf.name)
-            config = SafeConfigParser()
+            config = ConfigParser()
             config.read([tf.name])
             self.assertEqual(host + '2', config['coal-mine']['host'])
 
@@ -99,15 +105,14 @@ class CLITests(TestCase):
         with patch('sys.stderr', StringIO()):
             with self.assertRaises(SystemExit):
                 cli.doit((), '/dev/null')
-            self.assertRegexpMatches(sys.stderr.getvalue(),
-                                     r'No command specified')
+            self.assertRegex(sys.stderr.getvalue(), r'No command specified')
 
     @responses.activate
     def test_create(self):
         with patch('sys.stderr', StringIO()):
             with self.assertRaises(SystemExit):
                 cli.doit(('create', '--name', 'froodle'), '/dev/null')
-            self.assertRegexpMatches(
+            self.assertRegex(
                 sys.stderr.getvalue(),
                 r'error: the following arguments are required: --periodicity')
 
@@ -126,11 +131,11 @@ class CLITests(TestCase):
             with self.assertRaises(SystemExit):
                 cli.doit(('update', '--id', 'abcdefgh', '--slug', 'foo'),
                          '/dev/null')
-            self.assertRegexpMatches(
+            self.assertRegex(
                 sys.stderr.getvalue(),
                 r'error: argument --slug: not allowed with argument --id')
 
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
                 SystemExit,
                 r'Must specify --name, --id, or --slug'):
             cli.doit(('update', '--periodicity', '120'), '/dev/null')
@@ -244,7 +249,7 @@ class CLITests(TestCase):
 
     @responses.activate
     def test_bad_response(self):
-        with self.assertRaisesRegexp(SystemExit, r'^Not Found$'):
+        with self.assertRaisesRegex(SystemExit, r'^Not Found$'):
             add_response('get?name=froodle', status=404, body='Not Found')
             cli.doit(('get', '--name', 'froodle'), '/dev/null')
 
@@ -257,5 +262,5 @@ class CLITests(TestCase):
             subprocess.check_output(
                 ('python', '-m', 'coal_mine.cli', 'froodle'),
                 stderr=subprocess.STDOUT)
-        self.assertRegexpMatches(cm.exception.output.decode('ascii'),
-                                 r"invalid choice: 'froodle'")
+        self.assertRegex(cm.exception.output.decode('ascii'),
+                         r"invalid choice: 'froodle'")

@@ -20,7 +20,7 @@ Coal Mine WSGI server
 
 from coal_mine.business_logic import BusinessLogic, CanaryNotFoundError
 from copy import copy
-from configparser import SafeConfigParser, NoSectionError, NoOptionError
+from configparser import ConfigParser, NoSectionError, NoOptionError
 from functools import partial, wraps
 import json
 import logbook
@@ -45,7 +45,7 @@ log = logbook.Logger('coal-mine')
 
 
 def main():  # pragma: no cover
-    config = SafeConfigParser()
+    config = ConfigParser()
     dirs = ('.', '/etc', '/usr/local/etc')
     if not config.read([os.path.join(dir, config_file) for dir in dirs]):
         sys.exit('Could not find {} in {}'.format(config_file, dirs))

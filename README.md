@@ -567,6 +567,15 @@ awesome folks at [Quantopian](https://www.quantopian.com/). Thanks,
 also, to Quantopian for supporting the development and open-sourcing
 of this project.
 
+Maintaining the package
+-----------------------
+
+### Tests
+
+Tests are expecting to be run with `pytest`. With all the packages in
+`requirements.txt` and `requirements_dev.txt` installed, run `python
+-m pytest`.
+
 Development philosophy
 ----------------------
 

@@ -116,11 +116,11 @@ class ServerTests(TestCase):
 
     def test_find_identifier_missing(self):
         response = self.call_application(self.make_url('get'), {})
-        self.assertRegexpMatches(response['error'],
-                                 'Must specify id, slug, or name')
+        self.assertRegex(response['error'],
+                         'Must specify id, slug, or name')
         self.assertEqual(self.response_code, '400 Bad Request')
         response = self.call_application(self.make_url('update'), {})
-        self.assertRegexpMatches(response['error'], 'Must specify id or slug')
+        self.assertRegex(response['error'], 'Must specify id or slug')
         self.assertEqual(self.response_code, '400 Bad Request')
 
     def test_boolean_parameters(self):

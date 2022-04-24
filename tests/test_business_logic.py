@@ -312,13 +312,13 @@ class BusinessLogicTests(object):
                          self.logic.find_identifier(name=created['name']))
 
     def test_find_identifier_invalid(self):
-        with self.assertRaisesRegexp(Exception, 'Must specify'):
+        with self.assertRaisesRegex(Exception, 'Must specify'):
             self.logic.find_identifier()
-        with self.assertRaisesRegexp(Exception, 'Specify only one'):
+        with self.assertRaisesRegex(Exception, 'Specify only one'):
             self.logic.find_identifier(name='foo', slug='bar')
 
     def test_find_identifier_slug_not_found(self):
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
                 CanaryNotFoundError,
                 r"'slug': 'test-find-identifier-slug-not-found'"):
             self.logic.find_identifier(

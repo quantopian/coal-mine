@@ -1,8 +1,4 @@
-import sys
 from setuptools import setup, find_packages
-
-if sys.version_info[0] < 3:
-    sys.exit("This package does not work with Python 2.")
 
 
 # You can't just put `from pypandoc import convert` at the top of your
@@ -56,6 +52,7 @@ setup(
     ],
     packages=find_packages(),
     setup_requires=['pypandoc'],
+    python_requires='>=3.2',
     install_requires=open('requirements.txt').read(),
     entry_points={
         'console_scripts': [

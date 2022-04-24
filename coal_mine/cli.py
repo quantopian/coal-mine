@@ -19,7 +19,7 @@ Coal Mine CLI
 """
 
 import argparse
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 import copy
 import os
 import pprint
@@ -36,7 +36,7 @@ config_section = 'coal-mine'
 
 
 def parse_args(args, config_file):
-    config = SafeConfigParser()
+    config = ConfigParser()
     config.read([config_file])
     try:
         section = config[config_section]
