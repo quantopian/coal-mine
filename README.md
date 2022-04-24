@@ -555,7 +555,7 @@ Contacts
 
 [Github](https://github.com/quantopian/coal-mine)
 
-[Email](mailto:opensource@quantopian.com)
+[Email](mailto:jik@kamens.us)
 
 [PyPI](https://pypi.python.org/pypi/coal_mine)
 
