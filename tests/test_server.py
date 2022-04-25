@@ -14,10 +14,322 @@
 
 from coal_mine.business_logic import BusinessLogic
 from coal_mine.memory_store import MemoryStore
-from coal_mine.server import application, url_prefix
+from coal_mine.server import (
+    application,
+    config_from_environment,
+    config_from_ini,
+    main,
+    url_prefix,
+)
 import json
+import os
+from tempfile import TemporaryDirectory
+from textwrap import dedent
 from unittest import TestCase
+from unittest.mock import patch
 from urllib.parse import urlencode
+
+
+class TemporaryIniFile(object):
+    def __init__(self, contents):
+        self.contents = contents
+        self.d = None
+        self.cwd = None
+
+    def __enter__(self):
+        self.d = TemporaryDirectory()
+        self.cwd = os.getcwd()
+        try:
+            os.chdir(self.d.name)
+            with open('coal-mine.ini', 'w') as f:
+                f.write(self.contents)
+        except Exception:
+            self.cwd = None
+
+    def __exit__(self, *args, **kwargs):
+        if self.d:
+            self.d.cleanup()
+        if self.cwd:
+            os.chdir(self.cwd)
+
+
+class ServerIniTests(TestCase):
+    @patch('coal_mine.server.config_file', 'this-file-does-not-exist.ini')
+    def test_no_ini(self):
+        with self.assertRaises(SystemExit) as cm:
+            config_from_ini()
+        self.assertRegex(cm.exception.args[0],
+                         r'^Could not find this-file')
+
+    def test_ini_file_exists(self):
+        with TemporaryIniFile(''):
+            with self.assertRaises(SystemExit) as cm:
+                config_from_ini()
+        self.assertRegex(cm.exception.args[0], r'^No "mongodb" section in ')
+
+    def test_minimal_ini(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+        ''')):
+            config = config_from_ini()
+            self.assertEqual(config['logging']['file'], 'coal-mine.log')
+            self.assertEqual(config['logging']['rotate'], False)
+            self.assertEqual(config['email']['sender'], 'example@example.com')
+            self.assertEqual(config['mongodb']['hosts'], ['localhost'])
+            self.assertEqual(config['mongodb']['kwargs']['database'],
+                             'coal-mine-unit-tests')
+            self.assertEqual(config['wsgi']['port'], 80)
+
+    def test_logging_rotate_defaults(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            rotate=True
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+        ''')):
+            config = config_from_ini()
+            self.assertEqual(config['logging']['rotate'], True)
+            self.assertEqual(config['logging']['max_size'], 1048576)
+            self.assertEqual(config['logging']['backup_count'], 5)
+
+    def test_logging_rotate_specified(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            rotate=True
+            max_size=1000
+            backup_count=2
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+        ''')):
+            config = config_from_ini()
+            self.assertEqual(config['logging']['rotate'], True)
+            self.assertEqual(config['logging']['max_size'], 1000)
+            self.assertEqual(config['logging']['backup_count'], 2)
+
+    def test_no_hosts(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                config_from_ini()
+            self.assertRegex(cm.exception.args[0],
+                             r'^No "mongodb\.hosts" setting')
+
+    def test_no_database(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            [email]
+            sender=example@example.com
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                config_from_ini()
+            self.assertRegex(cm.exception.args[0],
+                             r'^No "mongodb\.database" setting')
+
+    def test_multiple_hosts(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=127.0.0.1, 127.0.0.2
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+        ''')):
+            config = config_from_ini()
+            self.assertEqual(config['mongodb']['hosts'],
+                             ['127.0.0.1', '127.0.0.2'])
+
+    def test_mongodb_uri(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=mongodb://localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+        ''')):
+            config = config_from_ini()
+            self.assertEqual(config['mongodb']['hosts'], 'mongodb://localhost')
+
+    def test_no_email_section(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                config_from_ini()
+            self.assertRegex(cm.exception.args[0], r'^No "email" section in ')
+
+    def test_no_email_setting(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                config_from_ini()
+            self.assertRegex(cm.exception.args[0], r'^No "sender" setting in ')
+
+    def test_wsgi_settings(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            [wsgi]
+            port=8080
+            auth_key=foobarbaz
+        ''')):
+            config = config_from_ini()
+            self.assertEqual(config['wsgi']['port'], 8080)
+            self.assertEqual(config['wsgi']['auth_key'], 'foobarbaz')
+
+
+class ServerEnvVarTests(TestCase):
+    def test_no_uri(self):
+        config = config_from_environment()
+        self.assertIsNone(config)
+
+    @patch.dict(os.environ, {'MONGODB_URI': 'localhost'})
+    def test_bad_uri(self):
+        with self.assertRaises(SystemExit) as cm:
+            config_from_environment()
+        self.assertRegex(cm.exception.args[0], r'^Malformed MONGODB_URI')
+
+    @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost',
+                             'EMAIL_SENDER': 'example@example.com'})
+    def test_minimal(self):
+        config = config_from_environment()
+        self.assertEqual(config['mongodb']['hosts'], 'mongodb://localhost')
+        self.assertEqual(config['email']['sender'], 'example@example.com')
+
+    @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost'})
+    def test_no_sender(self):
+        with self.assertRaises(SystemExit) as cm:
+            config_from_environment()
+            self.assertRegex(cm.exception.args[0],
+                             r'^EMAIL_SENDER environment variable not set')
+
+    @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost',
+                             'EMAIL_SENDER': 'example@example.com',
+                             'WSGI_PORT': '8080',
+                             'WSGI_AUTH_KEY': 'frobnitz'})
+    def test_wsgi_settings(self):
+        config = config_from_environment()
+        self.assertEqual(config['wsgi']['port'], 8080)
+        self.assertEqual(config['wsgi']['auth_key'], 'frobnitz')
+
+    @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost',
+                             'EMAIL_SENDER': 'example@example.com',
+                             'WSGI_PORT': 'foobar'})
+    def test_bad_port(self):
+        with self.assertRaises(SystemExit) as cm:
+            config_from_environment()
+        self.assertRegex(cm.exception.args[0], r'^Malformed WSGI_PORT foobar')
+
+
+@patch('coal_mine.server.serve')
+class ServerMainTests(TestCase):
+    def test_no_ini(self, serve):
+        with self.assertRaises(SystemExit) as cm:
+            main()
+        self.assertRegex(cm.exception.args[0],
+                         r'Could not find coal-mine\.ini')
+        serve.assert_not_called()
+
+    def test_ini(self, serve):
+        with TemporaryIniFile(dedent('''\
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            [wsgi]
+            port=8080
+            auth_key=frobnitz
+        ''')):
+            main()
+            serve.assert_called_once()
+            self.assertEqual(serve.call_args[0][0], 8080)
+            self.assertIsInstance(serve.call_args[0][1], BusinessLogic)
+            self.assertEqual(serve.call_args[0][2], 'frobnitz')
+
+    @patch.dict(os.environ,
+                {'MONGODB_URI': 'mongodb://localhost/coal-mine-unit-tests',
+                 'EMAIL_SENDER': 'example@example.com',
+                 'WSGI_PORT': '8080',
+                 'WSGI_AUTH_KEY': 'frobnitz'})
+    def test_environment(self, serve):
+        main()
+        serve.assert_called_once()
+        self.assertEqual(serve.call_args[0][0], 8080)
+        self.assertIsInstance(serve.call_args[0][1], BusinessLogic)
+        self.assertEqual(serve.call_args[0][2], 'frobnitz')
+
+    def test_log_file(self, serve):
+        with TemporaryIniFile(dedent('''\
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            [logging]
+            file=coal-mine.log
+        ''')):
+            main()
+            log_contents = open('coal-mine.log', 'r').read()
+            self.assertRegex(log_contents, r'Binding to port 80')
+
+    def test_rotating_log_file(self, serve):
+        with TemporaryIniFile(dedent('''\
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            [logging]
+            file=coal-mine.log
+            rotate=True
+            max_size=10
+        ''')):
+            main()
+            log_contents = open('coal-mine.log', 'r').read()
+            log1_contents = open('coal-mine.log.1', 'r').read()
+            self.assertRegex(log_contents, r'authentication DISABLED')
+            self.assertRegex(log1_contents, r'Binding to port')
 
 
 class ServerTests(TestCase):

@@ -44,69 +44,158 @@ url_prefix = '/coal-mine/v1/canary/'
 log = logbook.Logger('coal-mine')
 
 
-def main():  # pragma: no cover
-    config = ConfigParser()
-    dirs = ('.', '/etc', '/usr/local/etc')
-    if not config.read([os.path.join(dir, config_file) for dir in dirs]):
-        sys.exit('Could not find {} in {}'.format(config_file, dirs))
+def main():
+    config = config_from_environment()
+    if config is None:
+        config = config_from_ini()
 
-    try:
-        logfile = config.get('logging', 'file')
-        rotating = config.getboolean('logging', 'rotate', fallback=False)
-        if rotating:
-            max_size = config.get('logging', 'max_size', fallback=1048576)
-            backup_count = config.get('logging', 'backup_count', fallback=5)
+    logfile = config['logging']['file']
+    if logfile:
+        if config['logging']['rotate']:
+            max_size = config['logging']['max_size']
+            backup_count = config['logging']['backup_count']
             handler = logbook.RotatingFileHandler(logfile, max_size=max_size,
                                                   backup_count=backup_count)
         else:
             handler = logbook.FileHandler(logfile)
-        handler.push_application()
-    except Exception:
-        logbook.StderrHandler().push_application()
+    else:
+        handler = logbook.StderrHandler()
+
+    with handler.applicationbound():
+        store = MongoStore(config['mongodb']['hosts'],
+                           **config['mongodb']['kwargs'])
+
+        business_logic = BusinessLogic(store, config['email']['sender'])
+
+        listen_port = config['wsgi']['port']
+        log.info('Binding to port {}'.format(listen_port))
+
+        auth_key = config['wsgi']['auth_key']
+        if auth_key:
+            log.info('Server authentication enabled')
+        else:
+            log.warning('Server authentication DISABLED')
+
+        business_logic.schedule_next_deadline()
+
+        serve(listen_port, business_logic, auth_key)
+
+
+def serve(port, business_logic, auth_key):  # pragma: no cover
+    httpd = make_server(
+        '', port, partial(application, business_logic, auth_key),
+        handler_class=LogbookWSGIRequestHandler)
+    httpd.serve_forever()
+
+
+def blank_config():
+    return {
+        'logging': {
+            'file': None,
+            'rotate': None,
+            'max_size': None,
+            'backup_count': None,
+        },
+        'mongodb': {
+            'hosts': None,
+            'kwargs': {},
+        },
+        'email': {
+            'sender': None,
+        },
+        'wsgi': {
+            'port': 80,
+            'auth_key': None,
+        },
+    }
+
+
+def config_from_ini():
+    parser = ConfigParser()
+    dirs = ('.', '/etc', '/usr/local/etc')
+    if not parser.read([os.path.join(dir, config_file) for dir in dirs]):
+        sys.exit('Could not find {} in {}'.format(config_file, dirs))
+
+    config = blank_config()
 
     try:
-        kwargs = dict(config.items('mongodb'))
+        config['logging']['file'] = parser.get('logging', 'file')
+    except Exception:
+        pass
+    else:
+        config['logging']['rotate'] = parser.getboolean(
+            'logging', 'rotate', fallback=False)
+        if config['logging']['rotate']:
+            config['logging']['max_size'] = parser.getint(
+                'logging', 'max_size', fallback=1048576)
+            config['logging']['backup_count'] = parser.getint(
+                'logging', 'backup_count', fallback=5)
+
+    try:
+        kwargs = dict(parser.items('mongodb'))
     except NoSectionError:
         sys.exit('No "mongodb" section in config file')
-    args = []
-    for arg in ('hosts', 'database', 'username', 'password'):
-        try:
-            args.append(config.get('mongodb', arg))
-        except NoOptionError:
-            sys.exit('No "{}" setting in "mongodb" section of config file'.
-                     format(arg))
-        kwargs.pop(arg)
-    args[0] = [s.strip() for s in args[0].split(',')]
-    store = MongoStore(*args, **kwargs)
 
     try:
-        email_sender = config.get('email', 'sender')
+        config['mongodb']['hosts'] = kwargs.pop('hosts')
+    except KeyError:
+        sys.exit('No "mongodb.hosts" setting in config file')
+
+    if ':' not in config['mongodb']['hosts']:
+        config['mongodb']['hosts'] = [
+            s.strip() for s in config['mongodb']['hosts'].split(',')]
+        if 'database' not in kwargs:
+            sys.exit('No "mongodb.database" setting in config file')
+
+    config['mongodb']['kwargs'] = kwargs
+
+    try:
+        config['email']['sender'] = parser.get('email', 'sender')
     except NoSectionError:
         sys.exit('No "email" section in config file')
     except NoOptionError:
         sys.exit('No "sender" setting in "email" section of config file')
 
-    business_logic = BusinessLogic(store, email_sender)
+    try:
+        config['wsgi']['port'] = parser.getint('wsgi', 'port')
+    except (NoSectionError, NoOptionError):
+        pass
 
     try:
-        listen_port = int(config.get('wsgi', 'port'))
-        log.info('Binding to port {}'.format(listen_port))
-    except Exception:
-        listen_port = 80
-        log.info('Binding to default port {}'.format(listen_port))
+        config['wsgi']['auth_key'] = parser.get('wsgi', 'auth_key')
+    except (NoSectionError, NoOptionError):
+        pass
+
+    return config
+
+
+def config_from_environment():
+    config = blank_config()
 
     try:
-        auth_key = config.get('wsgi', 'auth_key')
-        log.info('Server authentication enabled')
-    except Exception:
-        log.warning('Server authentication DISABLED')
-        auth_key = None
+        uri = os.environ['MONGODB_URI']
+    except KeyError:
+        return None
 
-    httpd = make_server('', listen_port,
-                        partial(application, business_logic, auth_key),
-                        handler_class=LogbookWSGIRequestHandler)
-    business_logic.schedule_next_deadline()
-    httpd.serve_forever()
+    if ':' not in uri:
+        sys.exit(f'Malformed MONGODB_URI {uri}')
+    config['mongodb']['hosts'] = uri
+
+    try:
+        config['email']['sender'] = os.environ['EMAIL_SENDER']
+    except KeyError:
+        sys.exit('EMAIL_SENDER environment variable not set')
+
+    try:
+        config['wsgi']['port'] = int(os.environ['WSGI_PORT'])
+    except KeyError:
+        pass
+    except Exception:
+        sys.exit(f'Malformed WSGI_PORT {os.environ["WSGI_PORT"]}')
+
+    config['wsgi']['auth_key'] = os.environ.get('WSGI_AUTH_KEY')
+
+    return config
 
 
 def application(business_logic, auth_key, environ, start_response):

@@ -30,7 +30,8 @@ log = Logger('MongoStore')
 
 
 class MongoStore(AbstractStore):
-    def __init__(self, hosts, database, username, password, **kwargs):
+    def __init__(self, hosts, database=None, username=None, password=None,
+                 **kwargs):
         """Keyword arguments are the same as what would be passed to
         MongoClient."""
 
@@ -38,7 +39,10 @@ class MongoStore(AbstractStore):
             kwargs['username'] = username
             kwargs['password'] = password
         connection = MongoClient(hosts, **kwargs)
-        db = connection[database]
+        if database is None:
+            db = connection.get_default_database()
+        else:
+            db = connection[database]
         self.db = db
         self.collection = self.db['canaries']
 

@@ -170,7 +170,8 @@ Installation and configuration
 ### Server
 
 1. `pip install coal-mine`
-2. Create `/etc/coal-mine.ini` (see [below](#ini-file))
+2. Create `/etc/coal-mine.ini` (see [below](#ini-file)) or [use
+   environment variables](#env-vars-config)
 3. Run `coal-mine &`
 4. Put that in `/etc/rc.local` or something as needed to ensure that
    it is restarted on reboot.
@@ -191,17 +192,19 @@ settings that it can or must contain:
   * max\_size -- max log file size before rotating (default: 1048576)
   * backup\_count -- number of rotated log files to keep (default: 5)
 * \[mongodb\] -- required
-  * hosts -- the first argument to pymongo 3's MongoClient
+  * hosts -- MongoDB URI or comma-separated list of one or more host
+    names
   * database -- database name. Coal Mine will create only one
-    collection in the database, called "canaries".
-  * username -- must be specified, but can be blank if no
-    authentication is required
-  * password -- must be specified, but can be blank if no
-    authentication is required
-  * replicaSet -- must be specified if using a replicaset
+    collection in the database, called "canaries". Omit if
+    `hosts` contains a MongoDB URI
+  * username -- omit if no authentication is required or `hosts`
+    contains a URI
+  * password -- omit if no authentication is required or if `hosts`
+    contains a URI
+  * replicaSet -- must be specified if using a replicaset and `hosts`
+    isn't a URI
   * other arguments will be passed through to MongoClient
      * for example, tls can be set to True or False
-  
 * \[email\] -- required
   * sender -- email address to put in the From line of notification
     emails
@@ -210,6 +213,20 @@ settings that it can or must contain:
   * auth\_key -- if non-empty, then the specified key must be
     specified as a parameter of the same name with all API requests
     except "trigger".
+
+#### Configurating via environment variables  <a name="env-vars-config"></a>
+
+If the environment variable `MONGODB_URI` is set, then the server will
+read its configuration from environment variables _instead of_
+`coal-mine.ini`. (i.e., the configuration file will neither be
+searched for nor read). When configured this way, logging
+configuration is not supported, the `mongodb` configuration file
+section is replaced with the `MONGODB_URI` variable, and the remaining
+configuration settings are specified as follows:
+
+* email.sender -> `EMAIL_SENDER`
+* wsgi.port -> `WSGI_PORT`
+* wsgi.auth_key -> `WSGI_AUTH_KEY`
 
 ### CLI
 

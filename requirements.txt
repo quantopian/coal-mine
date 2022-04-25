@@ -1,5 +1,5 @@
 crontab==0.23.0
 logbook==1.5.3
-pymongo==4.1.1
+pymongo[srv]==4.1.1
 charset-normalizer==2.0.12
 requests==2.27.1
