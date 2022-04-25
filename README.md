@@ -38,7 +38,7 @@ previously late canary is triggered.
 Prerequisites
 -------------
 
-* Python 3
+* Python 3.2
 * MongoDB for storage (pull requests to add additional storage engines
   are welcome)
 * requirements listed in requirements.txt
@@ -94,6 +94,9 @@ These are created and maintained by Coal Mine:
   generated when the canary is created and guaranteed to be unique
   against other canaries in the database
 * late state (boolean)
+* notify state (boolean) indicating whether a notification needs to be
+  sent out for this canary (used when notifications are being handled
+  by a separate background task)
 * paused state (boolean)
 * deadline by which the canary should be triggered to avoid being late
 * a history of triggers, pruned when >1000 or (>100 and older than one
@@ -205,9 +208,15 @@ settings that it can or must contain:
     isn't a URI
   * other arguments will be passed through to MongoClient
      * for example, tls can be set to True or False
-* \[email\] -- required
-  * sender -- email address to put in the From line of notification
-    emails
+* \[email\]
+  * sender (required) -- email address to put in the From line of
+    notification emails
+  * host (optiona) -- SMTP host to connect to
+  * port (optional) -- SMTP port to connect to
+  * username (optional) -- SMTP username, must be specified if
+    password is
+  * password (optional) -- SMTP password, must be specified if
+    username is
 * \[wsgi\] -- optional
   * port -- port number the server should listen on (default: 80)
   * auth\_key -- if non-empty, then the specified key must be
@@ -225,8 +234,43 @@ section is replaced with the `MONGODB_URI` variable, and the remaining
 configuration settings are specified as follows:
 
 * email.sender -> `EMAIL_SENDER`
+* email.host -> `SMTP_HOST`
+* email.port -> `SMTP_PORT`
+* email.username -> `SMTP_USERNAME`
+* email.password -> `SMTP_PASSWORD`
 * wsgi.port -> `WSGI_PORT`
 * wsgi.auth_key -> `WSGI_AUTH_KEY`
+
+### Deploying the Server to Heroku
+
+There's a `Procfile` in the source tree which allows you to deploy
+this app to Heroku. This is new functionality which has not been
+extensively tested, so please [file bug reports][bugs] if you run into
+any issues! Here's how to do it in a nutshell:
+
+[bugs]: https://github.com/quantopian/coal-mine/issues
+
+1. Create a new Heroku app to hold it.
+2. Connect a MongoDB database to the Heroku app via the `MONGODB_URI`
+   config variable, via an add-on (I think ObjectRocket will work?),
+   MongoDB Atlas, your own self-hosted MongoDB cluster, or whatever.
+   It doesn't matter where the MongoDB database lives as long as
+   Heroku can connect to it and its full URI is in `MONGODB_URI`.
+3. Set `EMAIL_SENDER`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
+   `SMTP_PASSWORD`. You'll need to add an SMTP add-on to the Heroku
+   app or have an SMTP server somewhere else you can use; if you use
+   an add-on, it'll probably call these settings by different names,
+   so you'll have to copy them into the names that Coal Mine expects.
+4. Set `WSGI_AUTH_KEY` to something long and random, since you don't
+   want anyone on the internet to be able to mess with your Coal Mine
+   instance.
+5. Push the code to the Heroku app.
+6. Make sure the app is configured to run at least one web dyno
+   (should happen by default) and exactly 1 worker dyno.
+
+Once all that's done you'll need to configure your CLI to talk to the
+Heroku app as described below. Make sure to specify `https://` at the
+start of the host name when configuring the CLI.
 
 ### CLI
 
@@ -237,7 +281,9 @@ configuration settings are specified as follows:
 The `--host` argument can take a URL base (i.e.,
 `http://server-host-name` or `https://server-host-name`) as well. This
 is useful if, for example, you've put your Coal Mine server behind an
-SSL proxy so the CLI needs to use SSL to connect to it.
+SSL proxy so the CLI needs to use SSL to connect to it (which you
+probably will, e.g., if you are deploying to Heroku as described
+above).
 
 The CLI stores its configuration in `~/.coal-mine.ini`. Note that the
 authentication key is stored in plaintext. Any configuration
@@ -637,8 +683,6 @@ there, for several reasons:
 Other storage engines.
 
 Other notification mechanisms.
-
-More smtplib configuration options in INI file.
 
 Web UI.
 

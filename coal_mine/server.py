@@ -18,6 +18,7 @@
 Coal Mine WSGI server
 """
 
+import argparse
 from coal_mine.business_logic import BusinessLogic, CanaryNotFoundError
 from copy import copy
 from configparser import ConfigParser, NoSectionError, NoOptionError
@@ -27,6 +28,7 @@ import logbook
 from coal_mine.mongo_store import MongoStore
 import os
 import re
+import signal
 import socket
 import sys
 from wsgiref.simple_server import make_server, WSGIRequestHandler
@@ -44,10 +46,27 @@ url_prefix = '/coal-mine/v1/canary/'
 log = logbook.Logger('coal-mine')
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Coal Mine Server')
+    parser.add_argument('--port', type=int, action='store', default=80,
+                        help='Port number to listen on (default 80)')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--web', action='store_true', help='Process web '
+                       'requests but do not do background tasks such as '
+                       'notifications of late canaries')
+    group.add_argument('--background', action='store_true', help='Do '
+                       'background tasks such as notifications of late '
+                       'canaries but do not process web requests')
+
+    args = parser.parse_args()
+    return args
+
+
 def main():
-    config = config_from_environment()
+    args = parse_args()
+    config = config_from_environment(args)
     if config is None:
-        config = config_from_ini()
+        config = config_from_ini(args)
 
     logfile = config['logging']['file']
     if logfile:
@@ -61,24 +80,44 @@ def main():
     else:
         handler = logbook.StderrHandler()
 
+    if sum(1 for k in ('username', 'password') if config['email'][k]) == 1:
+        sys.exit('Must specify both or neither of email username and password')
+
     with handler.applicationbound():
         store = MongoStore(config['mongodb']['hosts'],
+                           create_indexes=not args.web,
                            **config['mongodb']['kwargs'])
 
-        business_logic = BusinessLogic(store, config['email']['sender'])
+        business_logic = BusinessLogic(
+            store, config['email']['sender'],
+            smtp_host=config['email']['host'],
+            smtp_port=config['email']['port'],
+            smtp_username=config['email']['username'],
+            smtp_password=config['email']['password'],
+            background_tasks=not args.web,
+            background_interval=10 if args.background else None)
 
-        listen_port = config['wsgi']['port']
-        log.info('Binding to port {}'.format(listen_port))
+        if not args.web:
+            business_logic.schedule_next_deadline()
 
-        auth_key = config['wsgi']['auth_key']
-        if auth_key:
-            log.info('Server authentication enabled')
+        if args.background:
+            background(business_logic)
         else:
-            log.warning('Server authentication DISABLED')
+            listen_port = config['wsgi']['port']
+            log.info('Binding to port {}'.format(listen_port))
 
-        business_logic.schedule_next_deadline()
+            auth_key = config['wsgi']['auth_key']
+            if auth_key:
+                log.info('Server authentication enabled')
+            else:
+                log.warning('Server authentication DISABLED')
 
-        serve(listen_port, business_logic, auth_key)
+            serve(listen_port, business_logic, auth_key)
+
+
+def background(business_logic):  # pragma: no cover
+    while True:
+        signal.pause()
 
 
 def serve(port, business_logic, auth_key):  # pragma: no cover
@@ -88,7 +127,7 @@ def serve(port, business_logic, auth_key):  # pragma: no cover
     httpd.serve_forever()
 
 
-def blank_config():
+def blank_config(args):
     return {
         'logging': {
             'file': None,
@@ -102,21 +141,25 @@ def blank_config():
         },
         'email': {
             'sender': None,
+            'host': None,
+            'port': None,
+            'username': None,
+            'password': None,
         },
         'wsgi': {
-            'port': 80,
+            'port': args.port,
             'auth_key': None,
         },
     }
 
 
-def config_from_ini():
+def config_from_ini(args):
     parser = ConfigParser()
     dirs = ('.', '/etc', '/usr/local/etc')
     if not parser.read([os.path.join(dir, config_file) for dir in dirs]):
         sys.exit('Could not find {} in {}'.format(config_file, dirs))
 
-    config = blank_config()
+    config = blank_config(args)
 
     try:
         config['logging']['file'] = parser.get('logging', 'file')
@@ -150,16 +193,30 @@ def config_from_ini():
     config['mongodb']['kwargs'] = kwargs
 
     try:
-        config['email']['sender'] = parser.get('email', 'sender')
+        email = dict(parser.items('email'))
     except NoSectionError:
         sys.exit('No "email" section in config file')
-    except NoOptionError:
-        sys.exit('No "sender" setting in "email" section of config file')
+
+    try:
+        config['email']['sender'] = email['sender']
+    except KeyError:
+        sys.exit('No "email.sender" setting in config file')
+
+    for setting in ('host', 'username', 'password'):
+        config['email'][setting] = email.get(setting, None)
+
+    if 'port' in email:
+        try:
+            config['email']['port'] = int(email['port'])
+        except ValueError:
+            sys.exit(f'Malformed email.port {email["port"]}')
 
     try:
         config['wsgi']['port'] = parser.getint('wsgi', 'port')
     except (NoSectionError, NoOptionError):
         pass
+    except ValueError:
+        sys.exit(f'Malformed wsgi.port {parser.get("wsgi", "port")}')
 
     try:
         config['wsgi']['auth_key'] = parser.get('wsgi', 'auth_key')
@@ -169,8 +226,8 @@ def config_from_ini():
     return config
 
 
-def config_from_environment():
-    config = blank_config()
+def config_from_environment(args):
+    config = blank_config(args)
 
     try:
         uri = os.environ['MONGODB_URI']
@@ -185,6 +242,19 @@ def config_from_environment():
         config['email']['sender'] = os.environ['EMAIL_SENDER']
     except KeyError:
         sys.exit('EMAIL_SENDER environment variable not set')
+
+    for key in ('host', 'username', 'password'):
+        try:
+            config['email'][key] = os.environ[f'SMTP_{key.upper()}']
+        except KeyError:
+            pass
+
+    try:
+        config['email']['port'] = int(os.environ['SMTP_PORT'])
+    except KeyError:
+        pass
+    except Exception:
+        sys.exit(f'Malformed SMTP_PORT {os.environ["SMTP_PORT"]}')
 
     try:
         config['wsgi']['port'] = int(os.environ['WSGI_PORT'])

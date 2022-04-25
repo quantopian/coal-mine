@@ -49,11 +49,20 @@ class AlreadyUnpausedError(Exception):
 
 
 class BusinessLogic(object):
-    def __init__(self, store, email_sender):
+    def __init__(self, store, email_sender, smtp_host=None, smtp_port=None,
+                 smtp_username=None, smtp_password=None,
+                 background_tasks=True, background_interval=None):
         self.store = store
         self.email_sender = email_sender
+        self.smtp_host = smtp_host
+        self.smtp_port = smtp_port
+        self.smtp_username = smtp_username
+        self.smtp_password = smtp_password
         self.current_alarm = None
-        signal.signal(signal.SIGALRM, self.deadline_handler)
+        self.background_tasks = background_tasks
+        self.background_interval = background_interval
+        if background_tasks:
+            signal.signal(signal.SIGALRM, self.deadline_handler)
 
     def create(self, name, periodicity, description=None, emails=[],
                paused=False):
@@ -332,6 +341,10 @@ class BusinessLogic(object):
         )
 
     def notify(self, canary):
+        if not self.background_tasks:
+            self.store.update(canary['id'], {'notify': True})
+            return
+        self.store.update(canary['id'], {'notify': None})
         if canary['late']:
             subject = '[LATE] {} has not reported'.format(canary['name'])
         else:
@@ -365,7 +378,10 @@ class BusinessLogic(object):
 
         try:
             smtp = smtplib.SMTP()
-            smtp.connect()
+            smtp.connect(self.smtp_host if self.smtp_host else 'localhost',
+                         self.smtp_port if self.smtp_port else 0)
+            if self.smtp_username:
+                smtp.login(self.smtp_username, self.smtp_password)
             message_template = dedent('''
                 From: Coal Mine <{}>
                 To: {}
@@ -388,19 +404,35 @@ class BusinessLogic(object):
                 canary['name'], canary['id'], subject))
 
     def schedule_next_deadline(self, canary=None):
+        if not self.background_tasks:
+            return
+
         if not canary:
             try:
                 canary = next(self.store.upcoming_deadlines())
             except StopIteration:
-                self.current_alarm = None
-                return
+                if self.background_interval:
+                    when = self.background_interval
+                    which = 'periodic check'
+                else:
+                    self.current_alarm = None
+                    return
 
-        when = max(1, (canary['deadline'] - datetime.datetime.utcnow()).
-                   total_seconds())
+        if canary:
+            when = max(1, (canary['deadline'] - datetime.datetime.utcnow()).
+                       total_seconds())
+            which = f'canary {canary["name"]} ({canary["id"]})'
+            if self.background_interval and self.background_interval < when:
+                when = self.background_interval
+                which = 'periodic check'
 
-        signal.alarm(int(math.ceil(when)))
+        when = int(math.ceil(when))
+        signal.alarm(when)
+        when_dt = datetime.datetime.utcnow().replace(microsecond=0) + \
+            datetime.timedelta(seconds=when)
+
         # It might seem as if the signal.alarm call above is redundant and
-        # unnecessary if `self.current_alarm == canary['deadline']`. I.e., it
+        # unnecessary if `self.current_alarm == when_dt`. I.e., it
         # might seem as if it could be put in the body of the `if` statement
         # below. And yes, that would be true in an ideal world where everything
         # works properly. However, we do not live in an ideal world, but rather
@@ -412,14 +444,16 @@ class BusinessLogic(object):
         # However, what is more expensive is the "Setting alarm for canary ..."
         # log noise that appears over and over for the same darn alarm, so I'm
         # only logging that message when the next alarm changes.
-        if self.current_alarm != canary['deadline']:
-            log.info('Setting alarm for canary {} ({}) at {}'.format(
-                canary['name'], canary['id'], str(canary['deadline'])))
-            self.current_alarm = canary['deadline']
+        if self.current_alarm != when_dt:
+            log.info('Setting alarm for {} at {}'.format(which, str(when_dt)))
+            self.current_alarm = when_dt
 
     def deadline_handler(self, signum, frame):
         self.current_alarm = None
         now = datetime.datetime.utcnow()
+
+        for canary in self.store.pending_notifications():
+            self.notify(canary)
 
         for canary in self.store.upcoming_deadlines():
             if canary['deadline'] <= now:
@@ -430,6 +464,8 @@ class BusinessLogic(object):
             else:
                 self.schedule_next_deadline(canary)
                 return
+        # No canaries
+        self.schedule_next_deadline()
 
     def slug(self, name):
         name = name.lower()

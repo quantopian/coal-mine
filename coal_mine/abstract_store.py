@@ -39,11 +39,11 @@ class AbstractStore(object, metaclass=ABCMeta):  # pragma: no cover
 
     @abstractmethod
     def get(self, identifier):
-        """Should raise KeyError if not found, or return a dict with these keys: id,
-        name, description, slug, periodicity, emails, late, paused, deadline,
-        history. History should be a list of tuples, each of which contains a
-        naive UTC timestamp and a possibly empty comment, sorted from most to
-        least recent. Deadline should be a naive UTC timestamp.
+        """Should raise KeyError if not found, or return a dict with these
+        keys: id, name, description, slug, periodicity, emails, late, paused,
+        deadline, history. History should be a list of tuples, each of which
+        contains a naive UTC timestamp and a possibly empty comment, sorted
+        from most to least recent. Deadline should be a naive UTC timestamp.
 
         NOTE: The caller could modify the dict you return, so don't return
         anything you have a pointer to internally! If you need to return a dict
@@ -51,22 +51,30 @@ class AbstractStore(object, metaclass=ABCMeta):  # pragma: no cover
         raise NotImplementedError('get')
 
     @abstractmethod
-    def list(self, *, verbose=False, paused=None, late=None, search=None):
+    def list(self, *, verbose=False, paused=None, late=None, notify=None,
+             search=None):
         """Return an iterator which yields dicts (but see the note on get()). If
         verbose is False, then the dicts contain only name and id, otherwise,
         all fields (same as returned by get()) are returned. If paused, late,
-        and/or search are specified, they are used to filter the results. The
-        latter is a regular expression (string, not regular expression object),
-        which is matched against the name, slug, and id of canaries and only
-        matches are returned."""
+        notify, and/or search are specified, they are used to filter the
+        results. The latter is a regular expression (string, not regular
+        expression object), which is matched against the name, slug, and id of
+        canaries and only matches are returned."""
         raise NotImplementedError('list')
 
     @abstractmethod
     def upcoming_deadlines(self):
-        """Return an iterator which yields canaries (same as returned by get(); see in
-        particular the note there) that are unpaused and not yet late, sorted
-        by deadline in increasing order, i.e., the canary that will pass its
-        deadline soonest is returned first."""
+        """Return an iterator which yields canaries (same as returned by get();
+        see in particular the note there) that are unpaused and not yet late,
+        sorted by deadline in increasing order, i.e., the canary that will pass
+        its deadline soonest is returned first."""
+        raise NotImplementedError('upcoming_deadlines')
+
+    @abstractmethod
+    def pending_notifications(self):
+        """Return an iterator which yields canaries (same as returned by get();
+        see in particular the note there) that are pendint notifications. The
+        order of the returned canaries is undefined."""
         raise NotImplementedError('upcoming_deadlines')
 
     @abstractmethod

@@ -12,6 +12,7 @@
 # implied.  See the License for the specific language governing
 # permissions and limitations under the License.
 
+from argparse import Namespace
 from coal_mine.business_logic import BusinessLogic
 from coal_mine.memory_store import MemoryStore
 from coal_mine.server import (
@@ -28,6 +29,9 @@ from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import patch
 from urllib.parse import urlencode
+
+default_args = Namespace()
+default_args.port = 80
 
 
 class TemporaryIniFile(object):
@@ -57,14 +61,14 @@ class ServerIniTests(TestCase):
     @patch('coal_mine.server.config_file', 'this-file-does-not-exist.ini')
     def test_no_ini(self):
         with self.assertRaises(SystemExit) as cm:
-            config_from_ini()
+            config_from_ini(default_args)
         self.assertRegex(cm.exception.args[0],
                          r'^Could not find this-file')
 
     def test_ini_file_exists(self):
         with TemporaryIniFile(''):
             with self.assertRaises(SystemExit) as cm:
-                config_from_ini()
+                config_from_ini(default_args)
         self.assertRegex(cm.exception.args[0], r'^No "mongodb" section in ')
 
     def test_minimal_ini(self):
@@ -77,7 +81,7 @@ class ServerIniTests(TestCase):
             [email]
             sender=example@example.com
         ''')):
-            config = config_from_ini()
+            config = config_from_ini(default_args)
             self.assertEqual(config['logging']['file'], 'coal-mine.log')
             self.assertEqual(config['logging']['rotate'], False)
             self.assertEqual(config['email']['sender'], 'example@example.com')
@@ -97,7 +101,7 @@ class ServerIniTests(TestCase):
             [email]
             sender=example@example.com
         ''')):
-            config = config_from_ini()
+            config = config_from_ini(default_args)
             self.assertEqual(config['logging']['rotate'], True)
             self.assertEqual(config['logging']['max_size'], 1048576)
             self.assertEqual(config['logging']['backup_count'], 5)
@@ -115,7 +119,7 @@ class ServerIniTests(TestCase):
             [email]
             sender=example@example.com
         ''')):
-            config = config_from_ini()
+            config = config_from_ini(default_args)
             self.assertEqual(config['logging']['rotate'], True)
             self.assertEqual(config['logging']['max_size'], 1000)
             self.assertEqual(config['logging']['backup_count'], 2)
@@ -130,7 +134,7 @@ class ServerIniTests(TestCase):
             sender=example@example.com
         ''')):
             with self.assertRaises(SystemExit) as cm:
-                config_from_ini()
+                config_from_ini(default_args)
             self.assertRegex(cm.exception.args[0],
                              r'^No "mongodb\.hosts" setting')
 
@@ -144,7 +148,7 @@ class ServerIniTests(TestCase):
             sender=example@example.com
         ''')):
             with self.assertRaises(SystemExit) as cm:
-                config_from_ini()
+                config_from_ini(default_args)
             self.assertRegex(cm.exception.args[0],
                              r'^No "mongodb\.database" setting')
 
@@ -158,7 +162,7 @@ class ServerIniTests(TestCase):
             [email]
             sender=example@example.com
         ''')):
-            config = config_from_ini()
+            config = config_from_ini(default_args)
             self.assertEqual(config['mongodb']['hosts'],
                              ['127.0.0.1', '127.0.0.2'])
 
@@ -172,7 +176,7 @@ class ServerIniTests(TestCase):
             [email]
             sender=example@example.com
         ''')):
-            config = config_from_ini()
+            config = config_from_ini(default_args)
             self.assertEqual(config['mongodb']['hosts'], 'mongodb://localhost')
 
     def test_no_email_section(self):
@@ -184,10 +188,10 @@ class ServerIniTests(TestCase):
             database=coal-mine-unit-tests
         ''')):
             with self.assertRaises(SystemExit) as cm:
-                config_from_ini()
+                config_from_ini(default_args)
             self.assertRegex(cm.exception.args[0], r'^No "email" section in ')
 
-    def test_no_email_setting(self):
+    def test_no_sender_setting(self):
         with TemporaryIniFile(dedent('''\
             [logging]
             file=coal-mine.log
@@ -197,8 +201,29 @@ class ServerIniTests(TestCase):
             [email]
         ''')):
             with self.assertRaises(SystemExit) as cm:
-                config_from_ini()
-            self.assertRegex(cm.exception.args[0], r'^No "sender" setting in ')
+                config_from_ini(default_args)
+            self.assertRegex(cm.exception.args[0],
+                             r'^No "email.sender" setting in ')
+
+    def test_smtp_settings(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            host=smtp.example.com
+            port=587
+            username=smtpu
+            password=smtpp
+        ''')):
+            config = config_from_ini(default_args)
+            self.assertEqual(config['email']['host'], 'smtp.example.com')
+            self.assertEqual(config['email']['port'], 587)
+            self.assertEqual(config['email']['username'], 'smtpu')
+            self.assertEqual(config['email']['password'], 'smtpp')
 
     def test_wsgi_settings(self):
         with TemporaryIniFile(dedent('''\
@@ -213,33 +238,66 @@ class ServerIniTests(TestCase):
             port=8080
             auth_key=foobarbaz
         ''')):
-            config = config_from_ini()
+            config = config_from_ini(default_args)
             self.assertEqual(config['wsgi']['port'], 8080)
             self.assertEqual(config['wsgi']['auth_key'], 'foobarbaz')
+
+    def test_bad_wsgi_port_ini(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            [wsgi]
+            port=foobar
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                config_from_ini(default_args)
+            self.assertRegex(cm.exception.args[0],
+                             r'Malformed wsgi.port foobar')
+
+    def test_bad_smtp_port_ini(self):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            port=foobar
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                config_from_ini(default_args)
+            self.assertRegex(cm.exception.args[0],
+                             r'Malformed email.port foobar')
 
 
 class ServerEnvVarTests(TestCase):
     def test_no_uri(self):
-        config = config_from_environment()
+        config = config_from_environment(default_args)
         self.assertIsNone(config)
 
     @patch.dict(os.environ, {'MONGODB_URI': 'localhost'})
     def test_bad_uri(self):
         with self.assertRaises(SystemExit) as cm:
-            config_from_environment()
+            config_from_environment(default_args)
         self.assertRegex(cm.exception.args[0], r'^Malformed MONGODB_URI')
 
     @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost',
                              'EMAIL_SENDER': 'example@example.com'})
     def test_minimal(self):
-        config = config_from_environment()
+        config = config_from_environment(default_args)
         self.assertEqual(config['mongodb']['hosts'], 'mongodb://localhost')
         self.assertEqual(config['email']['sender'], 'example@example.com')
 
     @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost'})
     def test_no_sender(self):
         with self.assertRaises(SystemExit) as cm:
-            config_from_environment()
+            config_from_environment(default_args)
             self.assertRegex(cm.exception.args[0],
                              r'^EMAIL_SENDER environment variable not set')
 
@@ -248,29 +306,40 @@ class ServerEnvVarTests(TestCase):
                              'WSGI_PORT': '8080',
                              'WSGI_AUTH_KEY': 'frobnitz'})
     def test_wsgi_settings(self):
-        config = config_from_environment()
+        config = config_from_environment(default_args)
         self.assertEqual(config['wsgi']['port'], 8080)
         self.assertEqual(config['wsgi']['auth_key'], 'frobnitz')
 
     @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost',
                              'EMAIL_SENDER': 'example@example.com',
                              'WSGI_PORT': 'foobar'})
-    def test_bad_port(self):
+    def test_bad_wsgi_port(self):
         with self.assertRaises(SystemExit) as cm:
-            config_from_environment()
+            config_from_environment(default_args)
         self.assertRegex(cm.exception.args[0], r'^Malformed WSGI_PORT foobar')
 
+    @patch.dict(os.environ, {'MONGODB_URI': 'mongodb://localhost',
+                             'EMAIL_SENDER': 'example@example.com',
+                             'SMTP_PORT': 'foobar'})
+    def test_bad_smtp_port(self):
+        with self.assertRaises(SystemExit) as cm:
+            config_from_environment(default_args)
+        self.assertRegex(cm.exception.args[0], r'^Malformed SMTP_PORT foobar')
 
+
+@patch('coal_mine.server.background')
 @patch('coal_mine.server.serve')
+@patch('sys.argv', ['coal-mine'])
 class ServerMainTests(TestCase):
-    def test_no_ini(self, serve):
+    def test_no_ini(self, serve, background):
         with self.assertRaises(SystemExit) as cm:
             main()
         self.assertRegex(cm.exception.args[0],
                          r'Could not find coal-mine\.ini')
         serve.assert_not_called()
+        background.assert_not_called()
 
-    def test_ini(self, serve):
+    def test_ini(self, serve, background):
         with TemporaryIniFile(dedent('''\
             [mongodb]
             hosts=localhost
@@ -283,8 +352,10 @@ class ServerMainTests(TestCase):
         ''')):
             main()
             serve.assert_called_once()
+            background.assert_not_called()
             self.assertEqual(serve.call_args[0][0], 8080)
             self.assertIsInstance(serve.call_args[0][1], BusinessLogic)
+            self.assertEqual(serve.call_args[0][1].background_tasks, True)
             self.assertEqual(serve.call_args[0][2], 'frobnitz')
 
     @patch.dict(os.environ,
@@ -292,14 +363,16 @@ class ServerMainTests(TestCase):
                  'EMAIL_SENDER': 'example@example.com',
                  'WSGI_PORT': '8080',
                  'WSGI_AUTH_KEY': 'frobnitz'})
-    def test_environment(self, serve):
+    def test_environment(self, serve, background):
         main()
         serve.assert_called_once()
+        background.assert_not_called()
         self.assertEqual(serve.call_args[0][0], 8080)
         self.assertIsInstance(serve.call_args[0][1], BusinessLogic)
+        self.assertEqual(serve.call_args[0][1].background_tasks, True)
         self.assertEqual(serve.call_args[0][2], 'frobnitz')
 
-    def test_log_file(self, serve):
+    def test_log_file(self, serve, background):
         with TemporaryIniFile(dedent('''\
             [mongodb]
             hosts=localhost
@@ -313,7 +386,7 @@ class ServerMainTests(TestCase):
             log_contents = open('coal-mine.log', 'r').read()
             self.assertRegex(log_contents, r'Binding to port 80')
 
-    def test_rotating_log_file(self, serve):
+    def test_rotating_log_file(self, serve, background):
         with TemporaryIniFile(dedent('''\
             [mongodb]
             hosts=localhost
@@ -330,6 +403,65 @@ class ServerMainTests(TestCase):
             log1_contents = open('coal-mine.log.1', 'r').read()
             self.assertRegex(log_contents, r'authentication DISABLED')
             self.assertRegex(log1_contents, r'Binding to port')
+
+    def test_smtp_no_password(self, serve, background):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            host=smtp.example.com
+            port=587
+            username=smtpu
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                main()
+            self.assertRegex(cm.exception.args[0],
+                             r'Must specify both or neither')
+
+    def test_smtp_no_username(self, serve, background):
+        with TemporaryIniFile(dedent('''\
+            [logging]
+            file=coal-mine.log
+            [mongodb]
+            hosts=localhost
+            database=coal-mine-unit-tests
+            [email]
+            sender=example@example.com
+            host=smtp.example.com
+            port=587
+            password=smtpp
+        ''')):
+            with self.assertRaises(SystemExit) as cm:
+                main()
+            self.assertRegex(cm.exception.args[0],
+                             r'Must specify both or neither')
+
+
+@patch('coal_mine.server.background')
+@patch('coal_mine.server.serve')
+@patch.dict(os.environ,
+            {'MONGODB_URI': 'mongodb://localhost/coal-mine-unit-tests',
+             'EMAIL_SENDER': 'example@example.com'})
+class ServerProcessTypeTests(TestCase):
+    @patch('sys.argv', ['coal-mine', '--background'])
+    def test_background(self, serve, background):
+        main()
+        serve.assert_not_called()
+        background.assert_called_once()
+        self.assertIsInstance(background.call_args[0][0], BusinessLogic)
+        self.assertEqual(background.call_args[0][0].background_tasks, True)
+
+    @patch('sys.argv', ['coal-mine', '--web'])
+    def test_web(self, serve, background):
+        main()
+        serve.assert_called_once()
+        background.assert_not_called()
+        self.assertIsInstance(serve.call_args[0][1], BusinessLogic)
+        self.assertEqual(serve.call_args[0][1].background_tasks, False)
 
 
 class ServerTests(TestCase):

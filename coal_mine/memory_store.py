@@ -68,6 +68,11 @@ class MemoryStore(AbstractStore):
         return (deepcopy(i)
                 for i in sorted(iterator, key=lambda i: i['deadline']))
 
+    def pending_notifications(self):
+        iterator = self.canaries.values()
+        iterator = (i for i in iterator if i.get('notify', False))
+        return (deepcopy(i) for i in iterator)
+
     def delete(self, identifier):
         del self.canaries[identifier]
 

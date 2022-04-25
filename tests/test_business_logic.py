@@ -289,19 +289,44 @@ class BusinessLogicTests(object):
             next(self.logic.list(search='froodlefreedle'))
         next(self.logic.list(verbose=True))
 
-    def test_notify(self):
-        with patch('smtplib.SMTP'):
+    @patch('smtplib.SMTP', autospec=True)
+    def test_notify(self, mock):
+        created = self.logic.create(name='test_notify',
+                                    periodicity=1,
+                                    emails=['test_notify@example.com'])
+        time.sleep(1.1)
+        self.logic.trigger(created['id'])
+        self.assertEqual(mock.method_calls[0][0], '().connect')
+        self.assertEqual(mock.method_calls[0][1], ('localhost', 0))
+        # No login since username and password not specified
+        self.assertEqual(mock.method_calls[1][0], '().sendmail')
+        self.logic.delete(created['id'])
+
+    @patch.object(smtplib.SMTP, 'connect', side_effect=Exception,
+                  autospec=True)
+    def test_notify_exception(self, mock):
+        created = self.logic.create(name='test_notify',
+                                    periodicity=1,
+                                    emails=['test_notify@example.com'])
+        time.sleep(1.1)
+        self.logic.trigger(created['id'])
+        self.logic.delete(created['id'])
+
+    @patch('smtplib.SMTP', autospec=True)
+    def test_notify_username(self, mock):
+        with patch.object(self.logic, 'smtp_username', 'smtpu'), \
+             patch.object(self.logic, 'smtp_password', 'smtpp'):
             created = self.logic.create(name='test_notify',
                                         periodicity=1,
                                         emails=['test_notify@example.com'])
             time.sleep(1.1)
             self.logic.trigger(created['id'])
-        with patch.object(smtplib.SMTP, 'connect', side_effect=Exception):
-            time.sleep(1.1)
-            self.logic.trigger(created['id'])
-        # Not needed for test, but let's clean up after ourselves to avoid
-        # unwanted notifications while other tests are running!
-        self.logic.delete(created['id'])
+            self.assertEqual(mock.method_calls[0][0], '().connect')
+            self.assertEqual(mock.method_calls[0][1], ('localhost', 0))
+            # No login since username and password not specified
+            self.assertEqual(mock.method_calls[1][0], '().login')
+            self.assertEqual(mock.method_calls[1][1], ('smtpu', 'smtpp'))
+            self.logic.delete(created['id'])
 
     def test_find_identifier(self):
         created = self.logic.create(name='test_find_identifier',
@@ -426,3 +451,68 @@ class BusinessLogicMemoryTests(MemoryStoreTester, BusinessLogicTests,
 class BusinessLogicMongoTests(MongoStoreTester, BusinessLogicTests,
                               TestCase):
     pass
+
+
+class BusinessLogicWebTests(MemoryStoreTester, TestCase):
+    def setUp(self):
+        self.store = self.get_store()
+        self.logic = BusinessLogic(self.store, 'example@example.com',
+                                   background_tasks=False)
+
+    def tearDown(self):
+        # Shouldn't be necessary but we're being paranoid about cleaning up.
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        self.free_store()
+
+    def test_no_signal_handler(self):
+        self.assertEqual(signal.getsignal(signal.SIGALRM), signal.SIG_DFL)
+
+    @patch('smtplib.SMTP', autospec=True)
+    def test_notify_queued(self, mock):
+        created = self.logic.create(name='test_notify_queued',
+                                    periodicity=1,
+                                    emails=['test_notify@example.com'])
+        self.logic.notify(created)
+        from_storage = self.store.get(created['id'])
+        self.assertEqual(from_storage['notify'], True)
+        self.logic.delete(created['id'])
+
+
+class BusinessLogicBackgroundTests(MemoryStoreTester, TestCase):
+    def setUp(self):
+        self.store = self.get_store()
+        self.logic = BusinessLogic(self.store, 'example@example.com',
+                                   background_interval=1)
+
+    def tearDown(self):
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        self.free_store()
+
+    def test_background_interval(self):
+        created = self.logic.create(name='test_background_interval',
+                                    periodicity=120)
+        then = datetime.utcnow() + \
+            timedelta(seconds=self.logic.background_interval)
+        self.assertLessEqual(self.logic.current_alarm, then)
+        self.logic.delete(created['id'])
+
+    def test_schedule_next_deadline_coverage(self):
+        # The only point of this test is to ensure we're covering all the code
+        # branches in schedule_next_deadline.
+        created = self.logic.create(name='test_background_interval',
+                                    periodicity=120)
+        self.logic.schedule_next_deadline(created)
+        self.logic.schedule_next_deadline(created)
+        self.logic.delete(created['id'])
+
+    @patch('smtplib.SMTP', autospec=True)
+    def test_queued_notify(self, mock):
+        # Trigger the notify branch in deadline_handler
+        created = self.logic.create(name='test_background_interval',
+                                    periodicity=120)
+        self.store.update(created['id'], {'notify': True})
+        self.logic.deadline_handler(None, None)
+        self.assertNotIn('notify', self.store.get(created['id']))
+        self.logic.delete(created['id'])

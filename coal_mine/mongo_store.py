@@ -31,7 +31,7 @@ log = Logger('MongoStore')
 
 class MongoStore(AbstractStore):
     def __init__(self, hosts, database=None, username=None, password=None,
-                 **kwargs):
+                 create_indexes=True, **kwargs):
         """Keyword arguments are the same as what would be passed to
         MongoClient."""
 
@@ -46,31 +46,33 @@ class MongoStore(AbstractStore):
         self.db = db
         self.collection = self.db['canaries']
 
-        # Compatibility for the fact that there were a couple releases (0.4.1
-        # through 0.4.3) when the the code was creating the index on id
-        # without unique=True.
-        existing_indexes = self.collection.index_information()
-        try:
-            id_index = existing_indexes['id_1']
+        if create_indexes:
+            # Compatibility for the fact that there were a couple releases
+            # (0.4.1 through 0.4.3) when the the code was creating the index on
+            # id without unique=True.
+            existing_indexes = self.collection.index_information()
             try:
-                is_unique = id_index['unique']
-            except Exception:
-                is_unique = False
-            if not is_unique:
-                self.collection.drop_index('id_1')
-        except Exception:  # pragma: no cover
-            pass
+                id_index = existing_indexes['id_1']
+                try:
+                    is_unique = id_index['unique']
+                except Exception:
+                    is_unique = False
+                if not is_unique:
+                    self.collection.drop_index('id_1')
+            except Exception:  # pragma: no cover
+                pass
 
-        self.collection.create_indexes([
-            IndexModel([('id', ASCENDING)], unique=True),
-            # for list()
-            IndexModel([('paused', ASCENDING),
-                        ('late', ASCENDING),
-                        ('deadline', ASCENDING)]),
-            IndexModel([('paused', ASCENDING), ('deadline', ASCENDING)]),
-            IndexModel([('late', ASCENDING), ('deadline', ASCENDING)]),
-            # for find_identifier(), as well as to ensure unique slugs
-            IndexModel([('slug', ASCENDING)], unique=True)])
+            self.collection.create_indexes([
+                IndexModel([('id', ASCENDING)], unique=True),
+                # for list()
+                IndexModel([('paused', ASCENDING),
+                            ('late', ASCENDING),
+                            ('deadline', ASCENDING)]),
+                IndexModel([('paused', ASCENDING), ('deadline', ASCENDING)]),
+                IndexModel([('late', ASCENDING), ('deadline', ASCENDING)]),
+                IndexModel([('notify', ASCENDING)]),
+                # for find_identifier(), as well as to ensure unique slugs
+                IndexModel([('slug', ASCENDING)], unique=True)])
 
     def create(self, canary):
         canary['_id'] = bson.ObjectId()
@@ -117,8 +119,8 @@ class MongoStore(AbstractStore):
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
 
-    def list(self, *, verbose=False, paused=None, late=None, search=None,
-             order_by=None):
+    def list(self, *, verbose=False, paused=None, late=None, notify=None,
+             search=None, order_by=None):
         if verbose:
             fields = {'_id': False}
         else:
@@ -131,6 +133,9 @@ class MongoStore(AbstractStore):
 
         if late is not None:
             spec['late'] = late
+
+        if notify is not None:
+            spec['notify'] = notify
 
         if order_by is not None:
             order_by = [(order_by, ASCENDING)]
@@ -155,6 +160,9 @@ class MongoStore(AbstractStore):
     def upcoming_deadlines(self):
         return self.list(verbose=True, paused=False, late=False,
                          order_by='deadline')
+
+    def pending_notifications(self):
+        return self.list(verbose=True, notify=True)
 
     def delete(self, identifier):
         while True:
