@@ -28,7 +28,7 @@ import re
 import requests
 try:
     from simplejson.errors import JSONDecodeError as JSONError
-except ImportError:
+except ImportError:  # pragma: no cover
     JSONError = ValueError
 import sys
 

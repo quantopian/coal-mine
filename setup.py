@@ -23,6 +23,9 @@ class lazy_convert(object):
     def __repr__(self):
         return repr(str(self))
 
+    def endswith(self, *args, **kwargs):
+        return str(self).endswith(*args, **kwargs)
+
     def split(self, *args, **kwargs):
         return str(self).split(*args, **kwargs)
 
@@ -32,7 +35,7 @@ class lazy_convert(object):
 
 setup(
     name="coal_mine",
-    version='0.6.0',
+    version='0.6.1',
     author='Quantopian Inc.',
     author_email='opensource@quantopian.com',
     description="Coal Mine - Periodic task execution monitor",
