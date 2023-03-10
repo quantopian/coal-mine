@@ -3,6 +3,7 @@ Coal Mine - Periodic task execution monitor
 
 Home page is [on Github](https://github.com/quantopian/coal-mine/).
 Releases are available [in PyPI](https://pypi.python.org/pypi/coal_mine).
+Please support this project [on Patreon](https://patreon.com/jikseclecticofferings).
 
 What is Coal Mine?
 ------------------
