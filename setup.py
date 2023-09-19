@@ -1,36 +1,5 @@
+from pathlib import Path
 from setuptools import setup, find_packages
-
-
-# You can't just put `from pypandoc import convert` at the top of your
-# setup.py and then put `description=convert("README.md", "rst")` in
-# your `setup()` invocation, because even if you list list `pypandoc`
-# in `setup_requires`, it won't be interpreted and installed until
-# after the keyword argument values of the `setup()` invocation have
-# been evaluated. Therefore, we define a `lazy_convert` class which
-# impersonates a string but doesn't actually import or use `pypandoc`
-# until the value of the string is needed. This defers the use of
-# `pypandoc` until after setuptools has figured out that it is needed
-# and made it available.
-class lazy_convert(object):
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
-
-    def __str__(self):
-        from pypandoc import convert_file
-        return str(convert_file(*self.args, **self.kwargs))
-
-    def __repr__(self):
-        return repr(str(self))
-
-    def endswith(self, *args, **kwargs):
-        return str(self).endswith(*args, **kwargs)
-
-    def split(self, *args, **kwargs):
-        return str(self).split(*args, **kwargs)
-
-    def replace(self, *args, **kwargs):
-        return str(self).replace(*args, **kwargs)
 
 
 setup(
@@ -40,7 +9,8 @@ setup(
     author_email='jik+coalmine@kamens.us',
     description="Coal Mine - Periodic task execution monitor",
     url='https://github.com/quantopian/coal-mine',
-    long_description=lazy_convert('README.md', 'rst'),
+    long_description=(Path(__file__).parent / 'README.md').read_text(),
+    long_description_content_type='text/markdown',
     license='Apache 2.0',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -54,7 +24,6 @@ setup(
         'Topic :: System :: Systems Administration',
     ],
     packages=find_packages(),
-    setup_requires=['pypandoc'],
     python_requires='>=3.2',
     install_requires=open('requirements.txt').read(),
     entry_points={
