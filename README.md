@@ -637,7 +637,7 @@ Maintaining the package
 ### Tests
 
 Tests are expecting to be run with `pytest`. With all the packages in
-`requirements.txt` and `requirements_dev.txt` installed, run `python
+`requirements.txt` and `requirements_dev.txt` installed, run `python3
 -m pytest`.
 
 Development philosophy
