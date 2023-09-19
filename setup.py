@@ -36,8 +36,8 @@ class lazy_convert(object):
 setup(
     name="coal_mine",
     version='0.6.1',
-    author='Quantopian Inc.',
-    author_email='opensource@quantopian.com',
+    author='Jonathan Kamens',
+    author_email='jik+coalmine@kamens.us',
     description="Coal Mine - Periodic task execution monitor",
     url='https://github.com/quantopian/coal-mine',
     long_description=lazy_convert('README.md', 'rst'),
