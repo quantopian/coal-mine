@@ -68,7 +68,7 @@ jobs:
     - name: Install dev requirements
       uses: BSFishy/pip-action@v1
       with:
-        requirements: requirements_rev.txt
+        requirements: requirements_dev.txt
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
