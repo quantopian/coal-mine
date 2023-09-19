@@ -35,7 +35,7 @@ class lazy_convert(object):
 
 setup(
     name="coal_mine",
-    version='0.6.1',
+    version='0.6.2',
     author='Jonathan Kamens',
     author_email='jik+coalmine@kamens.us',
     description="Coal Mine - Periodic task execution monitor",
