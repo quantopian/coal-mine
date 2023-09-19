@@ -640,6 +640,18 @@ Tests are expecting to be run with `pytest`. With all the packages in
 `requirements.txt` and `requirements_dev.txt` installed, run `python3
 -m pytest`.
 
+### Building
+
+After installing the requirements in `requirements.txt` and
+`requirements_dev.txt`, do `python3 -m build` to build packages.
+
+### Uploading to PyPI
+
+We're currently using Twine for uploading to PyPI. You need to install the
+requirements in `requirements.txt` and `requirements_dev.txt` in order
+to use it. You also need to configure it. See the [Twine
+documentation](https://twine.readthedocs.io/en/stable/) for more info.
+
 Development philosophy
 ----------------------
 
