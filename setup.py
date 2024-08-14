@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="coal_mine",
-    version='0.7',
+    version='0.7.1',
     author='Jonathan Kamens',
     author_email='jik+coalmine@kamens.us',
     description="Coal Mine - Periodic task execution monitor",
