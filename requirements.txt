@@ -1,9 +1,9 @@
 certifi>=2022.9.24
-charset-normalizer>=2.0.12,<3.3
+charset-normalizer>=2.0.12,<3.4
 crontab>=0.23.0,<1.1
-dnspython>=2.2.1,<2.5
-idna>=3.3,<3.5
-logbook>=1.5.3,<1.7
-pymongo>=3.11.0,<4.6
-requests>=2.27.1,<2.32
-urllib3>=1.26.12,<2.1
+dnspython>=2.2.1,<2.7
+idna>=3.3,<3.8
+logbook>=1.5.3,<1.8
+pymongo>=3.11.0,<4.9
+requests>=2.27.1,<2.33
+urllib3>=1.26.12,<2.3
