@@ -258,8 +258,15 @@ class BusinessLogic(object):
 
         updates['deadline'] = None
 
-        if canary['late']:
-            updates['late'] = False
+        # Removing the late status from a canary when it is paused means that
+        # an email message about it being late was previously generated but the
+        # corresponding email message about it resuming will never be
+        # generated, because we only generate that email when a canary
+        # transitions from late to not late. It's no good to have one
+        # notification but not the other, so I've changed the code to preserve
+        # the late status through a pause.
+        # if canary['late']:
+        #     updates['late'] = False
 
         self.store.update(identifier, updates)
         canary.update(updates)
