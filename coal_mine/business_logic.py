@@ -20,7 +20,6 @@ Business logic for Coal Mine
 from copy import copy
 from .crontab_schedule import CronTabSchedule, CronTabScheduleException
 import datetime
-from datetime import UTC
 from logbook import Logger
 import math
 from numbers import Number
@@ -29,6 +28,9 @@ import re
 import smtplib
 import signal
 from textwrap import dedent
+
+# Once Python 3.11+ is everywhere we can do `from datetime import UTC`
+UTC = datetime.timezone.utc
 
 log = Logger('BusinessLogic')
 

@@ -20,12 +20,15 @@ MongoDB store for Coal Mine
 from coal_mine.abstract_store import AbstractStore
 import bson
 from copy import copy
-from datetime import UTC
+import datetime
 from logbook import Logger
 from pymongo import MongoClient, IndexModel, ASCENDING
 from pymongo.errors import AutoReconnect
 import re
 import time
+
+# Once Python 3.11+ is everywhere we can do `from datetime import UTC`
+UTC = datetime.timezone.utc
 
 log = Logger('MongoStore')
 

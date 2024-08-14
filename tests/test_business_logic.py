@@ -22,13 +22,16 @@ from coal_mine.business_logic import (
 )
 from coal_mine.memory_store import MemoryStore
 from coal_mine.mongo_store import MongoStore
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 import signal
 import smtplib
 import time
 from unittest import TestCase
 from unittest.mock import patch
 import uuid
+
+# Once Python 3.11+ is everywhere we can do `from datetime import UTC`
+UTC = timezone.utc
 
 
 class MemoryStoreTester(object):
