@@ -22,7 +22,7 @@ from coal_mine.business_logic import (
 )
 from coal_mine.memory_store import MemoryStore
 from coal_mine.mongo_store import MongoStore
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import signal
 import smtplib
 import time
@@ -369,11 +369,11 @@ class BusinessLogicTests(object):
     def test_periodicity_numeric(self):
         created = self.logic.create(name='test_periodicity_numeric',
                                     periodicity=1200)
-        delta = (created['deadline'] - datetime.utcnow()).total_seconds()
+        delta = (created['deadline'] - datetime.now(UTC)).total_seconds()
         self.assertAlmostEqual(delta / 10, 120, places=0)
 
     def test_periodicity_schedule_inactive(self):
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         midnight_tomorrow = (now + timedelta(days=1)).replace(
             hour=0, minute=0, second=0, microsecond=0)
         tomorrow_schedule = '* * * * {} 1200'.format(
@@ -384,7 +384,7 @@ class BusinessLogicTests(object):
         self.assertAlmostEqual(delta / 10, 120, places=0)
 
     def test_periodicity_schedule_active(self):
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         created = self.logic.create(name='test_periodicity_schedule_active',
                                     periodicity='* * * * * 1200')
         delta = (created['deadline'] - now).total_seconds()
@@ -494,7 +494,7 @@ class BusinessLogicBackgroundTests(MemoryStoreTester, TestCase):
     def test_background_interval(self):
         created = self.logic.create(name='test_background_interval',
                                     periodicity=120)
-        then = datetime.utcnow() + \
+        then = datetime.now(UTC) + \
             timedelta(seconds=self.logic.background_interval)
         self.assertLessEqual(self.logic.current_alarm, then)
         self.logic.delete(created['id'])

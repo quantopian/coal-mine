@@ -20,6 +20,7 @@ MongoDB store for Coal Mine
 from coal_mine.abstract_store import AbstractStore
 import bson
 from copy import copy
+from datetime import UTC
 from logbook import Logger
 from pymongo import MongoClient, IndexModel, ASCENDING
 from pymongo.errors import AutoReconnect
@@ -107,6 +108,18 @@ class MongoStore(AbstractStore):
                 log.exception('update failure, retrying')
                 time.sleep(1)
 
+    def _tz_fix(self, canary):
+        """Replace naive datetimes with timezone-aware datetimes in canary
+
+        Note that this modifies the canary in place but returns it as as well
+        as a convenience to the caller."""
+        if canary.get('deadline', None):
+            canary['deadline'] = canary['deadline'].replace(tzinfo=UTC)
+        if canary.get('history', None):
+            for event in canary['history']:
+                event[0] = event[0].replace(tzinfo=UTC)
+        return canary
+
     def get(self, identifier):
         while True:
             try:
@@ -114,7 +127,7 @@ class MongoStore(AbstractStore):
                                                   projection={'_id': False})
                 if not canary:
                     raise KeyError('No such canary {}'.format(identifier))
-                return canary
+                return self._tz_fix(canary)
             except AutoReconnect:  # pragma: no cover
                 log.exception('find_one failure, retrying')
                 time.sleep(1)
@@ -151,7 +164,7 @@ class MongoStore(AbstractStore):
             try:
                 for canary in self.collection.find(spec, projection=fields,
                                                    sort=order_by, skip=skip):
-                    yield canary
+                    yield self._tz_fix(canary)
                 break
             except AutoReconnect:  # pragma: no cover
                 log.exception('find failure, retrying')

@@ -43,8 +43,8 @@ class AbstractStore(object, metaclass=ABCMeta):  # pragma: no cover
         """Should raise KeyError if not found, or return a dict with these
         keys: id, name, description, slug, periodicity, emails, late, paused,
         deadline, history. History should be a list of tuples, each of which
-        contains a naive UTC timestamp and a possibly empty comment, sorted
-        from most to least recent. Deadline should be a naive UTC timestamp.
+        contains a tz-aware UTC timestamp and a possibly empty comment, sorted
+        from most to least recent. Deadline should be a tz-aware UTC timestamp.
 
         NOTE: The caller could modify the dict you return, so don't return
         anything you have a pointer to internally! If you need to return a dict

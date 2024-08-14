@@ -20,6 +20,7 @@ Business logic for Coal Mine
 from copy import copy
 from .crontab_schedule import CronTabSchedule, CronTabScheduleException
 import datetime
+from datetime import UTC
 from logbook import Logger
 import math
 from numbers import Number
@@ -105,7 +106,7 @@ class BusinessLogic(object):
             raise TypeError('paused should be a bool')
         canary['paused'] = paused
 
-        canary['history'] = [(datetime.datetime.utcnow(), 'Canary created')]
+        canary['history'] = [(datetime.datetime.now(UTC), 'Canary created')]
         canary['late'] = False
 
         if not canary['paused']:
@@ -160,7 +161,7 @@ class BusinessLogic(object):
                 updates['deadline'] = canary['history'][0][0] + \
                     self.calculate_periodicity_delta(
                         periodicity, canary['history'][0][0])
-                is_late = updates['deadline'] < datetime.datetime.utcnow()
+                is_late = updates['deadline'] < datetime.datetime.now(UTC)
                 if is_late != canary['late']:
                     updates['late'] = is_late
                     notify = True
@@ -427,7 +428,7 @@ class BusinessLogic(object):
                     return
 
         if canary:
-            when = max(1, (canary['deadline'] - datetime.datetime.utcnow()).
+            when = max(1, (canary['deadline'] - datetime.datetime.now(UTC)).
                        total_seconds())
             which = f'canary {canary["name"]} ({canary["id"]})'
             if self.background_interval and self.background_interval < when:
@@ -436,7 +437,7 @@ class BusinessLogic(object):
 
         when = int(math.ceil(when))
         signal.alarm(when)
-        when_dt = datetime.datetime.utcnow().replace(microsecond=0) + \
+        when_dt = datetime.datetime.now(UTC).replace(microsecond=0) + \
             datetime.timedelta(seconds=when)
 
         # It might seem as if the signal.alarm call above is redundant and
@@ -458,7 +459,7 @@ class BusinessLogic(object):
 
     def deadline_handler(self, signum, frame):
         self.current_alarm = None
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(UTC)
 
         for canary in self.store.pending_notifications():
             self.notify(canary)
@@ -517,7 +518,7 @@ class BusinessLogic(object):
         if not isinstance(comment, str):
             raise TypeError('comment must be a string')
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(UTC)
         one_week_ago = now - datetime.timedelta(days=7)
 
         history.insert(0, (now, comment))
@@ -528,7 +529,7 @@ class BusinessLogic(object):
 
     def calculate_periodicity_delta(self, periodicity, whence=None):
         if whence is None:
-            whence = datetime.datetime.utcnow()
+            whence = datetime.datetime.now(UTC)
         if isinstance(periodicity, Number):
             if periodicity > 0:
                 return datetime.timedelta(seconds=periodicity)
@@ -628,7 +629,7 @@ class BusinessLogic(object):
         if isinstance(canary['periodicity'], Number):
             return
         schedule = CronTabSchedule(canary['periodicity'], delimiter=';')
-        start = datetime.datetime.utcnow()
+        start = datetime.datetime.now(UTC)
         ranges1 = [r for r in schedule.schedule_iter(start=start, multi=False)]
         ranges2 = [r for r in schedule.schedule_iter(
             start=start,
