@@ -277,8 +277,8 @@ class CronTabSchedule(object):
                 self.key_of(e) for e in new_entries)))
             if new_key != current_key or \
                self.smallest_change_gap == LIKE_FOREVER:
-                yield(current_start, next_start - ONE_MINUTE,
-                      self.fix_key(current_key, multi))
+                yield (current_start, next_start - ONE_MINUTE,
+                       self.fix_key(current_key, multi))
                 used_rules.update(current_rules)
                 current_rules = set(new_entries)
                 current_start = next_start
@@ -295,4 +295,4 @@ class CronTabSchedule(object):
         # otherwise. I can't figure out how to convince it that both branches
         # are executed, so I'm just exluding it from coverage analysis.
         if current_start < end:  # pragma: no cover
-            yield(current_start, end, self.fix_key(current_key, multi))
+            yield (current_start, end, self.fix_key(current_key, multi))
