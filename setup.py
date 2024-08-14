@@ -24,6 +24,8 @@ setup(
         'Topic :: System :: Systems Administration',
     ],
     packages=find_packages(),
+    # Once this goes to 3.11, we can get rid of the shenanigans for getting UTC
+    # from datetime.timezone instead of directly from datetime.UTC.
     python_requires='>=3.8',
     install_requires=open('requirements.txt').read(),
     entry_points={
