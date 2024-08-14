@@ -24,7 +24,7 @@ setup(
         'Topic :: System :: Systems Administration',
     ],
     packages=find_packages(),
-    python_requires='>=3.2',
+    python_requires='>=3.8',
     install_requires=open('requirements.txt').read(),
     entry_points={
         'console_scripts': [
